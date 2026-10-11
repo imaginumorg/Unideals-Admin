@@ -428,7 +428,10 @@ const Dashboard = () => {
 
                     return (
                       <div key={campus.name} className="flex items-center gap-3 text-sm">
-                        <span className="w-28 shrink-0 truncate font-medium text-[#0B1220] dark:text-[#E2E8F0]">
+                        <span
+                          title={campus.name}
+                          className="w-32 sm:w-36 shrink-0 truncate font-medium text-[#0B1220] dark:text-[#E2E8F0]"
+                        >
                           {campus.name}
                         </span>
                         <span className="w-10 shrink-0 text-right text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">
