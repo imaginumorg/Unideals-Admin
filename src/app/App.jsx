@@ -38,6 +38,7 @@ const App = () => {
           <Route path="/reports" element={<Navigate to="/moderation" replace />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/push-notifications" element={<Notification />} />
           <Route path="/notification" element={<Notification />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

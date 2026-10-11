@@ -1,290 +1,1099 @@
-import { memo, useCallback, useMemo, useState } from 'react'
-import Loader from '../../../shared/components/Loader'
-import { useFetch } from '../../../shared/hooks/useFetch'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { notificationsApi } from '../api/notificationsApi'
+import { campusesApi } from '../../campuses/api/campusesApi'
 import { useAuth } from '../../auth/context/AuthContext'
+import Loader from '../../../shared/components/Loader'
 
-const statusStyles = {
-  SENT: 'text-primary',
-  DRAFT: 'text-[#334155]',
-  SCHEDULED: 'text-[#D97706]',
-}
-
-const selectionCardStyles = {
-  active: 'border-2 border-primary bg-[#EEF2FF] text-primary',
-  idle: 'border border-[#E2E8F0] bg-white text-[#0B1220]',
-}
-
-const SelectionIndicator = ({ active }) => (
-  <span className={`flex h-6 w-6 items-center justify-center rounded-full ${active ? 'border border-primary text-primary' : 'border border-[#CBD5E1] text-[#CBD5E1]'}`}>
-    {active && (
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3">
-        <path d="m5 12 4 4 10-10" />
-      </svg>
-    )}
-  </span>
+// Sparkline SVG helpers for metric cards
+const PurpleSparkline = () => (
+  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
+    <path
+      d="M0 25 C20 22, 35 28, 50 18 C65 8, 80 15, 100 5"
+      stroke="#6366F1"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 )
 
+const GreenSparkline = () => (
+  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
+    <path
+      d="M0 26 C25 24, 45 20, 60 12 C75 5, 85 10, 100 3"
+      stroke="#10B981"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+const OrangeSparkline = () => (
+  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
+    <path
+      d="M0 28 C20 28, 40 22, 60 20 C75 18, 85 12, 100 8"
+      stroke="#F59E0B"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+const TEMPLATES = [
+  {
+    title: 'Special Offer for VIT Students!',
+    message: 'Get up to 30% off on Laptops and Accessories. Limited time offer!',
+    type: 'promotion',
+    audience: 'campus',
+    actionLabel: 'View Offers',
+    actionUrl: '/deals',
+    imageUrl:
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: 'Campus Moving Out Sale is Live!',
+    message: 'Graduating seniors are listing furniture, books, and electronics at discounted prices.',
+    type: 'announcement',
+    audience: 'all',
+    actionLabel: 'Browse Deals',
+    actionUrl: '/deals',
+    imageUrl:
+      'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: 'Pick-up Spot Safety Reminder',
+    message: 'Always meet at verified campus pickup hubs and inspect items before confirming deals.',
+    type: 'general',
+    audience: 'all',
+    actionLabel: 'Learn More',
+    actionUrl: '/help',
+    imageUrl: '',
+  },
+  {
+    title: 'Weekend Flash Deals in Tech',
+    message: 'Calculators, iPads, and lab supplies now available with instant peer delivery.',
+    type: 'promotion',
+    audience: 'buyers',
+    actionLabel: 'Claim Deal',
+    actionUrl: '/deals',
+    imageUrl:
+      'https://images.unsplash.com/photo-1588702547919-26089e690ecc?auto=format&fit=crop&w=600&q=80',
+  },
+]
+
 const Notification = () => {
-  const [notificationTitle, setNotificationTitle] = useState('')
-  const [notificationMessage, setNotificationMessage] = useState('')
-  const [recipientMode, setRecipientMode] = useState('all_users')
-  const [deliveryMode, setDeliveryMode] = useState('send_now')
-  const [channelMode, setChannelMode] = useState('in_app')
   const { canWrite } = useAuth()
 
-  const loadNotificationCenter = useCallback(() => notificationsApi.getNotificationCenter(), [])
-  const { data: notificationData, loading } = useFetch(loadNotificationCenter)
+  // Tab navigation: 'send' | 'history' | 'scheduled'
+  const [activeTab, setActiveTab] = useState('send')
 
-  const previewTitle = notificationTitle.trim() || 'Notification Title Preview'
-  const previewBody =
-    notificationMessage.trim() || 'Your message preview will appear here as you type.'
+  // Preview sub-tab: 'web' | 'mobile'
+  const [previewTab, setPreviewTab] = useState('web')
 
-  const channelCopy = useMemo(
-    () => ({
-      in_app: {
-        title: 'In-App Notification',
-        description: "Delivered directly to user's dashboard",
-      },
-      email: {
-        title: 'Email Notification',
-        description: 'Sent to primary email address',
-      },
-    }),
-    [],
+  // Templates modal
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false)
+
+  // Form states
+  const [title, setTitle] = useState('Special Offer for VIT Students!')
+  const [message, setMessage] = useState(
+    'Get up to 30% off on Laptops and Accessories. Limited time offer!',
+  )
+  const [notificationType, setNotificationType] = useState('promotion')
+  const [targetAudience, setTargetAudience] = useState('all')
+  const [selectedCampus, setSelectedCampus] = useState('')
+  const [imageUrl, setImageUrl] = useState(
+    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80',
+  )
+  const [actionLabel, setActionLabel] = useState('View Offers')
+  const [actionUrl, setActionUrl] = useState('/deals')
+  const [scheduleType, setScheduleType] = useState('now')
+  const [scheduledAt, setScheduledAt] = useState('')
+
+  // Data states
+  const [campuses, setCampuses] = useState([])
+  const [stats, setStats] = useState({
+    totalSent: 2548,
+    delivered: 2421,
+    deliveredPercent: 95,
+    clicked: 842,
+    clickedPercent: 33,
+    activeUsers: 1204,
+  })
+  const [recipientCount, setRecipientCount] = useState(8452)
+  const [historyItems, setHistoryItems] = useState([])
+  const [scheduledItems, setScheduledItems] = useState([])
+  const [loadingData, setLoadingData] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [statusFeedback, setStatusFeedback] = useState(null)
+
+  // Initial load
+  useEffect(() => {
+    let mounted = true
+
+    const loadInitial = async () => {
+      setLoadingData(true)
+      try {
+        const [statsRes, campusesRes, schedRes, histRes] = await Promise.all([
+          notificationsApi.getStats(),
+          campusesApi.getCampuses(),
+          notificationsApi.getScheduled(),
+          notificationsApi.getHistory(1, 20),
+        ])
+
+        if (mounted) {
+          if (statsRes?.data) setStats(statsRes.data)
+          if (campusesRes?.data) {
+            setCampuses(campusesRes.data)
+            if (campusesRes.data.length > 0) {
+              const vit = campusesRes.data.find(
+                (c) => c.short_name?.includes('VIT') || c.name?.includes('Vellore'),
+              )
+              setSelectedCampus(vit ? vit._id : campusesRes.data[0]._id)
+            }
+          }
+          if (schedRes?.data) setScheduledItems(schedRes.data)
+          if (histRes?.data?.items) setHistoryItems(histRes.data.items)
+        }
+      } catch (err) {
+        console.error('Failed to load notification center data:', err)
+      } finally {
+        if (mounted) setLoadingData(false)
+      }
+    }
+
+    loadInitial()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Dynamic recipient count estimation
+  useEffect(() => {
+    let active = true
+    const fetchEstimate = async () => {
+      try {
+        const res = await notificationsApi.getRecipientEstimate({
+          targetAudience,
+          targetCampus: targetAudience === 'campus' ? selectedCampus : null,
+        })
+        if (active && res?.data?.count !== undefined) {
+          setRecipientCount(res.data.count)
+        }
+      } catch {
+        // keep current count on network jitter
+      }
+    }
+
+    fetchEstimate()
+    return () => {
+      active = false
+    }
+  }, [targetAudience, selectedCampus])
+
+  // Current campus object
+  const currentCampusObj = useMemo(
+    () => campuses.find((c) => String(c._id) === String(selectedCampus)),
+    [campuses, selectedCampus],
   )
 
-  if (loading && !notificationData) return <Loader rows={4} columns={2} />
+  // Apply template
+  const applyTemplate = (tpl) => {
+    setTitle(tpl.title)
+    setMessage(tpl.message)
+    setNotificationType(tpl.type)
+    setTargetAudience(tpl.audience)
+    setActionLabel(tpl.actionLabel)
+    setActionUrl(tpl.actionUrl)
+    setImageUrl(tpl.imageUrl)
+    setShowTemplatesModal(false)
+  }
+
+  // Handle send notification
+  const handleSend = async (e) => {
+    e.preventDefault()
+    if (!canWrite) return
+    if (!title.trim() || !message.trim()) {
+      setStatusFeedback({ type: 'error', message: 'Title and Message are required' })
+      return
+    }
+
+    if (scheduleType === 'scheduled' && !scheduledAt) {
+      setStatusFeedback({ type: 'error', message: 'Please select a date and time for scheduling' })
+      return
+    }
+
+    setSending(true)
+    setStatusFeedback(null)
+
+    try {
+      await notificationsApi.sendNotification({
+        title: title.trim(),
+        message: message.trim(),
+        type: notificationType,
+        target_audience: targetAudience,
+        target_campus: targetAudience === 'campus' ? selectedCampus : null,
+        image_url: imageUrl.trim() || null,
+        action_url: actionUrl.trim() || null,
+        action_label: actionLabel.trim() || 'View Offers',
+        schedule_type: scheduleType,
+        scheduled_at: scheduleType === 'scheduled' ? new Date(scheduledAt).toISOString() : null,
+      })
+
+      setStatusFeedback({
+        type: 'success',
+        message:
+          scheduleType === 'scheduled'
+            ? 'Notification scheduled successfully!'
+            : 'Push notification sent to recipients successfully!',
+      })
+
+      // Refresh stats, history & scheduled
+      const [statsRes, schedRes, histRes] = await Promise.all([
+        notificationsApi.getStats(),
+        notificationsApi.getScheduled(),
+        notificationsApi.getHistory(1, 20),
+      ])
+      if (statsRes?.data) setStats(statsRes.data)
+      if (schedRes?.data) setScheduledItems(schedRes.data)
+      if (histRes?.data?.items) setHistoryItems(histRes.data.items)
+    } catch (err) {
+      setStatusFeedback({
+        type: 'error',
+        message: err.message || 'Failed to dispatch notification',
+      })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Cancel scheduled notification
+  const handleCancelScheduled = async (id) => {
+    if (!canWrite) return
+    try {
+      await notificationsApi.cancelScheduled(id)
+      setScheduledItems((prev) => prev.filter((item) => String(item._id) !== String(id)))
+      setStatusFeedback({ type: 'success', message: 'Scheduled notification cancelled' })
+    } catch (err) {
+      setStatusFeedback({ type: 'error', message: err.message || 'Failed to cancel schedule' })
+    }
+  }
+
+  const notificationTypeBadgeLabel = useMemo(() => {
+    switch (notificationType) {
+      case 'promotion':
+        return 'OFFER'
+      case 'order':
+        return 'ORDER UPDATE'
+      case 'announcement':
+        return 'ANNOUNCEMENT'
+      default:
+        return 'GENERAL'
+    }
+  }, [notificationType])
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.3fr_0.78fr]">
-      <div className="space-y-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-[#0B1220]">Send Notification</h1>
-          <div className="flex items-center gap-3">
-            {!canWrite && (
-              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
-                Support: View-only
-              </span>
-            )}
-            <button
-              type="button"
-              disabled={!canWrite}
-              className="rounded-xl bg-[#F8FAFC] px-4 py-2.5 text-sm font-semibold text-[#334155] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Save Draft
-            </button>
-            <button
-              type="button"
-              disabled={!canWrite}
-              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Send Now
-            </button>
-          </div>
+    <div className="space-y-6 pb-12 font-sans text-slate-800 dark:text-slate-100">
+      {/* ===================== PAGE HEADER ===================== */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Push Notifications
+          </h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Send notifications to users, sellers, or specific campuses. Keep your UniDeals
+            community informed.
+          </p>
         </div>
 
-        <section className="rounded-[20px] bg-white p-5 shadow-sm">
-          <div className="space-y-5">
-            <label className="block">
-              <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.14em] text-[#64748B]">Notification Title</span>
-              <input
-                value={notificationTitle}
-                onChange={(event) => setNotificationTitle(event.target.value)}
-                placeholder="Enter a descriptive title..."
-                className="h-12 w-full rounded-xl border border-[#E2E8F0] px-4 text-sm text-[#0B1220] outline-none placeholder:text-[#64748B]"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.14em] text-[#64748B]">Message Content</span>
-              <textarea
-                value={notificationMessage}
-                onChange={(event) => setNotificationMessage(event.target.value)}
-                placeholder="Write your message here..."
-                className="min-h-[140px] w-full rounded-xl border border-[#E2E8F0] px-4 py-4 text-sm text-[#0B1220] outline-none placeholder:text-[#64748B]"
-              />
-            </label>
-          </div>
-        </section>
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          <section className="rounded-[20px] bg-white p-5 shadow-sm">
-            <h2 className="text-[22px] font-semibold text-[#0B1220]">Select Recipients</h2>
-            <div className="mt-5 space-y-3">
-              <button
-                type="button"
-                onClick={() => setRecipientMode('all_users')}
-                className={`flex w-full items-center justify-between rounded-xl px-5 py-4 text-left transition ${recipientMode === 'all_users' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-              >
-                <span className="flex items-center gap-3 text-[16px] font-semibold">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  </svg>
-                  All Users
-                </span>
-                <SelectionIndicator active={recipientMode === 'all_users'} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecipientMode('select_users')}
-                className={`flex w-full items-center justify-between rounded-xl px-5 py-4 text-left transition ${recipientMode === 'select_users' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-              >
-                <span className="flex items-center gap-3 text-[16px] font-semibold">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m20 20-3.5-3.5" />
-                  </svg>
-                  Pro Users
-                </span>
-                <SelectionIndicator active={recipientMode === 'select_users'} />
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-[20px] bg-white p-5 shadow-sm">
-            <h2 className="text-[22px] font-semibold text-[#0B1220]">Delivery Schedule</h2>
-            <div className="mt-5 space-y-3">
-              <button
-                type="button"
-                onClick={() => setDeliveryMode('send_now')}
-                className={`flex w-full items-center justify-between rounded-xl px-5 py-4 text-left transition ${deliveryMode === 'send_now' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-              >
-                <span className="flex items-center gap-3 text-[16px] font-semibold">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="m13 2-2 7h4l-4 13 2-9H9z" />
-                  </svg>
-                  Send Now
-                </span>
-                <SelectionIndicator active={deliveryMode === 'send_now'} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeliveryMode('schedule')}
-                className={`flex w-full items-center justify-between rounded-xl px-5 py-4 text-left transition ${deliveryMode === 'schedule' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-              >
-                <span className="flex items-center gap-3 text-[16px] font-semibold">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <path d="M16 2v4" />
-                    <path d="M8 2v4" />
-                    <path d="M3 10h18" />
-                  </svg>
-                  Schedule
-                </span>
-                <SelectionIndicator active={deliveryMode === 'schedule'} />
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <section className="rounded-[20px] bg-white p-5 shadow-sm">
-          <h2 className="text-[22px] font-semibold text-[#0B1220]">Notification Channel</h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setChannelMode('in_app')}
-              className={`rounded-xl p-5 text-left transition ${channelMode === 'in_app' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-            >
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${channelMode === 'in_app' ? 'bg-white text-primary' : 'bg-[#F8FAFC] text-[#334155]'}`}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 0 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
-                  <path d="M10 21a2 2 0 0 0 4 0" />
-                </svg>
-              </div>
-              <p className={`mt-4 text-[18px] font-semibold ${channelMode === 'in_app' ? 'text-primary' : 'text-[#0B1220]'}`}>{channelCopy.in_app.title}</p>
-              <p className="mt-2 text-sm text-[#475569]">{channelCopy.in_app.description}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setChannelMode('email')}
-              className={`rounded-xl p-5 text-left transition ${channelMode === 'email' ? selectionCardStyles.active : selectionCardStyles.idle}`}
-            >
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${channelMode === 'email' ? 'bg-white text-primary' : 'bg-[#F8FAFC] text-[#334155]'}`}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16v16H4z" />
-                  <path d="m4 7 8 6 8-6" />
-                </svg>
-              </div>
-              <p className={`mt-4 text-[18px] font-semibold ${channelMode === 'email' ? 'text-primary' : 'text-[#0B1220]'}`}>{channelCopy.email.title}</p>
-              <p className="mt-2 text-sm text-[#475569]">{channelCopy.email.description}</p>
-            </button>
-          </div>
-        </section>
+        <button
+          type="button"
+          onClick={() => setShowTemplatesModal(true)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <svg className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          Notification Templates
+        </button>
       </div>
 
-      <div className="space-y-5">
-        <section className="rounded-[20px] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[17px] font-semibold text-[#0B1220]">Notification Preview</h2>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0B1220]">Mobile</span>
+      {/* ===================== TABS NAVIGATION ===================== */}
+      <div className="flex items-center gap-2 border-b border-slate-200 text-sm font-semibold dark:border-slate-800">
+        <button
+          type="button"
+          onClick={() => setActiveTab('send')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 transition ${
+            activeTab === 'send'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <svg className="h-4 w-4 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          Send Notification
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 transition ${
+            activeTab === 'history'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" strokeWidth="2" />
+            <polyline points="12 6 12 12 16 14" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          Notification History
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('scheduled')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 transition ${
+            activeTab === 'scheduled'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
+            <line x1="16" y1="2" x2="16" y2="6" strokeWidth="2" />
+            <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2" />
+            <line x1="3" y1="10" x2="21" y2="10" strokeWidth="2" />
+          </svg>
+          Scheduled ({scheduledItems.length})
+        </button>
+      </div>
+
+      {/* ===================== TOP 4 STAT METRICS CARDS ===================== */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1: Total Sent */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                <svg className="h-3.5 w-3.5 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </span>
+              <span>Total Sent</span>
+              <span className="text-slate-400">›</span>
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {stats.totalSent.toLocaleString()}
+            </div>
+            <div className="flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <span>↗ 12%</span>
+            </div>
           </div>
-          <div className="mt-5 rounded-[18px] bg-[#F8FAFC] p-4">
-            <div className="rounded-[18px] bg-white p-4 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    {channelMode === 'in_app' ? (
-                      <>
-                        <path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 0 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
-                        <path d="M10 21a2 2 0 0 0 4 0" />
-                      </>
-                    ) : (
-                      <>
-                        <path d="M4 4h16v16H4z" />
-                        <path d="m4 7 8 6 8-6" />
-                      </>
-                    )}
-                  </svg>
+          <PurpleSparkline />
+        </div>
+
+        {/* Card 2: Delivered */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </span>
+              <span>Delivered</span>
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {stats.delivered.toLocaleString()}
+            </div>
+            <div className="flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <span>{stats.deliveredPercent}%</span>
+            </div>
+          </div>
+          <GreenSparkline />
+        </div>
+
+        {/* Card 3: Clicked */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
+                </svg>
+              </span>
+              <span>Clicked</span>
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {stats.clicked.toLocaleString()}
+            </div>
+            <div className="flex items-center text-xs font-bold text-amber-600 dark:text-amber-400">
+              <span>{stats.clickedPercent}%</span>
+            </div>
+          </div>
+          <OrangeSparkline />
+        </div>
+
+        {/* Card 4: Active Users */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </span>
+              <span>Active Users</span>
+              <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-950"></span>
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {stats.activeUsers.toLocaleString()}
+            </div>
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">online now</div>
+          </div>
+
+          <div className="flex -space-x-2 overflow-hidden">
+            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-slate-200 text-center text-xs font-bold leading-7 text-slate-600 dark:border-slate-900 dark:bg-slate-700 dark:text-slate-300">
+              AJ
+            </span>
+            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-indigo-100 text-center text-xs font-bold leading-7 text-indigo-700 dark:border-slate-900 dark:bg-indigo-950 dark:text-indigo-300">
+              RS
+            </span>
+            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-amber-100 text-center text-xs font-bold leading-7 text-amber-700 dark:border-slate-900 dark:bg-amber-950 dark:text-amber-300">
+              PK
+            </span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-bold text-slate-600 dark:border-slate-900 dark:bg-slate-800 dark:text-slate-300">
+              +1.2K
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ===================== STATUS FEEDBACK ALERT ===================== */}
+      {statusFeedback && (
+        <div
+          className={`flex items-center justify-between rounded-xl p-4 text-sm font-semibold transition ${
+            statusFeedback.type === 'success'
+              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
+          }`}
+        >
+          <span>{statusFeedback.message}</span>
+          <button
+            type="button"
+            onClick={() => setStatusFeedback(null)}
+            className="text-xs font-bold uppercase opacity-75 hover:opacity-100"
+          >
+            ✕ Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* ===================== TAB 1: SEND NOTIFICATION ===================== */}
+      {activeTab === 'send' && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          {/* LEFT: FORM SECTION */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Create Push Notification
+            </h2>
+
+            <form onSubmit={handleSend} className="mt-5 space-y-5">
+              {/* Title Input with counter */}
+              <div>
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="notif-title">Title *</label>
+                  <span className="text-slate-400">{title.length}/100</span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0B1220]">
-                      {channelMode === 'in_app' ? 'UniDeals' : 'Email Alert'}
+                <input
+                  id="notif-title"
+                  type="text"
+                  maxLength={100}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Special Offer for VIT Students!"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  required
+                />
+              </div>
+
+              {/* Message Textarea with counter */}
+              <div>
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="notif-message">Message *</label>
+                  <span className="text-slate-400">{message.length}/500</span>
+                </div>
+                <textarea
+                  id="notif-message"
+                  rows={3}
+                  maxLength={500}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Get up to 30% off on Laptops and Accessories. Limited time offer!"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  required
+                />
+              </div>
+
+              {/* Notification Type Pills */}
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                  Notification Type
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'general', label: 'General', icon: '🏷️' },
+                    { id: 'promotion', label: 'Offer / Promotion', icon: '🏷️' },
+                    { id: 'order', label: 'Order Update', icon: '📦' },
+                    { id: 'announcement', label: 'Announcement', icon: '📢' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setNotificationType(t.id)}
+                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                        notificationType === t.id
+                          ? 'border border-primary bg-indigo-50 text-primary dark:bg-indigo-950/50 dark:text-indigo-300'
+                          : 'border border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{t.icon}</span>
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Audience Pills */}
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                  Target Audience
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'all', label: 'All Users', icon: '👥' },
+                    { id: 'buyers', label: 'Buyers', icon: '🛍️' },
+                    { id: 'sellers', label: 'Sellers', icon: '🏷️' },
+                    { id: 'campus', label: 'Specific Campus', icon: '🏫' },
+                  ].map((aud) => (
+                    <button
+                      key={aud.id}
+                      type="button"
+                      onClick={() => setTargetAudience(aud.id)}
+                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                        targetAudience === aud.id
+                          ? 'border border-primary bg-indigo-50 text-primary dark:bg-indigo-950/50 dark:text-indigo-300'
+                          : 'border border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{aud.icon}</span>
+                      <span>{aud.label}</span>
+                    </button>
+                  ))}
+
+                  {/* Campus Dropdown when Specific Campus is chosen */}
+                  {targetAudience === 'campus' && (
+                    <div className="relative min-w-[200px]">
+                      <select
+                        value={selectedCampus}
+                        onChange={(e) => setSelectedCampus(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-8 text-xs font-bold text-slate-800 outline-none transition focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                      >
+                        {campuses.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.short_name || c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        ▼
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Image (Optional) */}
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                  Add Image (Optional)
+                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  {imageUrl ? (
+                    <div className="relative h-20 w-44 overflow-hidden rounded-xl border border-slate-200 shadow-sm dark:border-slate-800">
+                      <img
+                        src={imageUrl}
+                        alt="Notification Banner"
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl('')}
+                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/80 text-xs font-bold text-white transition hover:bg-rose-600"
+                        title="Remove image"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-1 flex-col gap-2 min-w-[240px]">
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="Paste image URL (e.g. ImageKit or banner link)"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setImageUrl(
+                            'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80',
+                          )
+                        }
+                        className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        Use Sale Sample
+                      </button>
+                      <span className="text-[11px] text-slate-400">JPG, PNG (Max 2MB)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button Label & Link */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Action Label (CTA)
+                  </label>
+                  <input
+                    type="text"
+                    value={actionLabel}
+                    onChange={(e) => setActionLabel(e.target.value)}
+                    placeholder="e.g. View Offers"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Action Target URL
+                  </label>
+                  <input
+                    type="text"
+                    value={actionUrl}
+                    onChange={(e) => setActionUrl(e.target.value)}
+                    placeholder="e.g. /deals or /myorders"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Schedule Section */}
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                  Schedule
+                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <input
+                      type="radio"
+                      name="schedule"
+                      checked={scheduleType === 'now'}
+                      onChange={() => setScheduleType('now')}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span>Send Now</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <input
+                      type="radio"
+                      name="schedule"
+                      checked={scheduleType === 'scheduled'}
+                      onChange={() => setScheduleType('scheduled')}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span>Schedule for Later</span>
+                  </label>
+
+                  {scheduleType === 'scheduled' && (
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                      required={scheduleType === 'scheduled'}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Button & Support Guard */}
+              <div className="pt-2">
+                {!canWrite ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
+                    Support role is view-only. Only full administrators can dispatch push notifications.
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={sending}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <svg className="h-4 w-4 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>
+                      {sending
+                        ? 'Dispatching...'
+                        : scheduleType === 'scheduled'
+                          ? 'Schedule Notification'
+                          : 'Send Notification'}
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#CBD5E1]">
-                      {deliveryMode === 'schedule' ? 'Scheduled' : 'Now'}
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* RIGHT: LIVE PREVIEW & AUDIENCE BREAKDOWN */}
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Notification Preview
+                </h3>
+                <span className="text-xs text-slate-400">ℹ️</span>
+              </div>
+
+              {/* Preview Tabs */}
+              <div className="mt-4 flex border-b border-slate-200 text-xs font-bold dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('web')}
+                  className={`border-b-2 px-4 py-2 transition ${
+                    previewTab === 'web'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  In-App (Web)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('mobile')}
+                  className={`border-b-2 px-4 py-2 transition ${
+                    previewTab === 'mobile'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Mobile Push
+                </button>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-black text-white shadow-sm">
+                      U
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-indigo-500"></span>
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      {notificationTypeBadgeLabel}
                     </span>
                   </div>
-                  <p className="mt-2 text-[17px] font-semibold text-[#0B1220]">{previewTitle}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#334155]">{previewBody}</p>
-                  <p className="mt-3 text-[12px] font-medium text-[#475569]">
-                    Audience: {recipientMode === 'all_users' ? 'All Users' : 'Pro Users'}
+                  <span className="text-[11px] font-semibold text-slate-400">Just now</span>
+                </div>
+
+                <div className="mt-3">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {title || 'Notification Title Preview'}
+                  </h4>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+                    {message || 'Your notification body preview will appear here.'}
                   </p>
                 </div>
+
+                {imageUrl && (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                    <img
+                      src={imageUrl}
+                      alt="Banner Preview"
+                      className="h-28 w-full object-cover"
+                    />
+                  </div>
+                )}
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-hover"
+                  >
+                    <span>{actionLabel || 'View Offers'}</span>
+                    <span>↗</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  >
+                    <span>✓</span>
+                    <span>Mark as read</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Will be sent to Summary Panel */}
+              <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Will be sent to
+                </h4>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <span>👥</span> Audience
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white capitalize">
+                    {targetAudience === 'all'
+                      ? 'All Users'
+                      : targetAudience === 'campus'
+                        ? 'Specific Campus'
+                        : targetAudience}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <span>🏫</span> Campus
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {targetAudience === 'campus'
+                      ? currentCampusObj?.short_name || currentCampusObj?.name || 'VIT Vellore'
+                      : 'All Campuses'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <span>📊</span> Total Recipients
+                  </span>
+                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                    ~ {recipientCount.toLocaleString()} users
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <span>⏰</span> Scheduled
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {scheduleType === 'now'
+                      ? 'Send Now'
+                      : scheduledAt
+                        ? new Date(scheduledAt).toLocaleString()
+                        : 'Scheduled Date'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      )}
 
-        <section className="rounded-[20px] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[17px] font-semibold text-[#0B1220]">Recent Broadcasts</h2>
-            <button type="button" className="text-sm font-semibold text-primary">
-              View All
-            </button>
+      {/* ===================== TAB 2: NOTIFICATION HISTORY ===================== */}
+      {activeTab === 'history' && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between pb-4">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Notification History
+            </h2>
+            <span className="text-xs font-semibold text-slate-500">
+              {historyItems.length} campaigns dispatched
+            </span>
           </div>
-          <div className="mt-5 space-y-4">
-            {(notificationData?.broadcasts || []).length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#94A3B8]">No data available</p>
-            ) : (
-              (notificationData?.broadcasts || []).map((broadcast) => (
-                <article key={broadcast.id} className="border-b border-[#EEF1F5] pb-4 last:border-0 last:pb-0">
-                  <div className="flex items-start justify-between gap-3">
+
+          {historyItems.length === 0 ? (
+            <div className="py-12 text-center text-slate-400">
+              <span className="text-3xl">📭</span>
+              <p className="mt-2 text-sm font-semibold">No notification campaigns sent yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800">
+                    <th className="py-3 px-4">Title & Message</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Audience</th>
+                    <th className="py-3 px-4">Sent</th>
+                    <th className="py-3 px-4">Delivered</th>
+                    <th className="py-3 px-4">Clicked</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {historyItems.map((item) => (
+                    <tr key={item._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900 dark:text-white">{item.title}</div>
+                        <div className="text-xs text-slate-500 line-clamp-1">{item.message}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+                        {item.type}
+                      </td>
+                      <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-300">
+                        {item.target_campus?.name || item.target_audience}
+                      </td>
+                      <td className="py-3.5 px-4 text-xs font-bold text-slate-900 dark:text-white">
+                        {item.stats?.total_sent || 1}
+                      </td>
+                      <td className="py-3.5 px-4 text-xs font-bold text-emerald-600">
+                        {item.stats?.delivered || 1}
+                      </td>
+                      <td className="py-3.5 px-4 text-xs font-bold text-amber-600">
+                        {item.stats?.clicked || 0}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================== TAB 3: SCHEDULED NOTIFICATIONS ===================== */}
+      {activeTab === 'scheduled' && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between pb-4">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Scheduled Notifications
+            </h2>
+            <span className="text-xs font-semibold text-slate-500">
+              {scheduledItems.length} queued
+            </span>
+          </div>
+
+          {scheduledItems.length === 0 ? (
+            <div className="py-12 text-center text-slate-400">
+              <span className="text-3xl">📅</span>
+              <p className="mt-2 text-sm font-semibold">No scheduled notifications pending.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {scheduledItems.map((item) => (
+                <div
+                  key={item._id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40"
+                >
+                  <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[17px] font-semibold text-[#0B1220]">{broadcast.title}</p>
-                      <p className="mt-1 text-sm text-[#64748B]">{broadcast.audience}</p>
+                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        {item.type}
+                      </span>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">
+                        {item.title}
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {item.message}
+                      </p>
                     </div>
-                    <span className={`text-[12px] font-semibold uppercase tracking-[0.14em] ${statusStyles[broadcast.status]}`}>{broadcast.status}</span>
+
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelScheduled(item._id)}
+                        className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-400"
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
-                  <p className="mt-2 text-sm text-[#475569]">{broadcast.time}</p>
-                </article>
-              ))
-            )}
+
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <span>
+                      📅 {item.scheduled_at ? new Date(item.scheduled_at).toLocaleString() : 'Pending'}
+                    </span>
+                    <span>🎯 {item.target_campus?.name || item.target_audience}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================== NOTIFICATION TEMPLATES MODAL ===================== */}
+      {showTemplatesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Notification Templates
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select a pre-built template to quickly populate your push notification.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTemplatesModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {TEMPLATES.map((tpl, i) => (
+                <div
+                  key={i}
+                  onClick={() => applyTemplate(tpl)}
+                  className="group flex cursor-pointer flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition hover:border-primary hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-primary"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                        {tpl.type}
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        {tpl.audience}
+                      </span>
+                    </div>
+                    <h4 className="mt-2 text-sm font-bold text-slate-900 group-hover:text-primary dark:text-white">
+                      {tpl.title}
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500 line-clamp-2">{tpl.message}</p>
+                  </div>
+                  <div className="mt-3 text-right text-xs font-bold text-primary">
+                    Use Template →
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
