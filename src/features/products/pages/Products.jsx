@@ -3,6 +3,7 @@ import { productsApi } from '../api/productsApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import ProductDetailsDrawer from '../components/ProductDetailsDrawer'
 import Avatar from '../../../shared/components/Avatar'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const categoryBadgeStyles = {
   Electronics: 'bg-[#E0F2FE] text-[#0284C7] dark:bg-[#0369A1]/30 dark:text-[#7DD3FC]',
@@ -68,6 +69,7 @@ const Products = () => {
     sellerName: '',
   })
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -128,6 +130,7 @@ const Products = () => {
   }
 
   const handleStatusChange = async (productId, nextStatus) => {
+    if (!canWrite) return { success: false, message: 'Support users can inspect products but cannot update listings.' }
     const res = await productsApi.updateProduct(productId, { status: nextStatus })
     if (res.success) {
       showToast({ type: 'success', message: `Product marked as ${nextStatus}` })
@@ -197,17 +200,19 @@ const Products = () => {
             </svg>
             <span>Export Products</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2 text-xs sm:text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            <span>Add Product</span>
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2 text-xs sm:text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+              <span>Add Product</span>
+            </button>
+          ) : null}
         </div>
       </div>
 

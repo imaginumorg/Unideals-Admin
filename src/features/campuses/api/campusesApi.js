@@ -88,45 +88,35 @@ export const campusesApi = {
     fetcher(async () => {
       try {
         const response = await requestBackend('/admin/campuses')
-        if (response.data && response.data.length > 0) {
+        if (Array.isArray(response.data)) {
           return createApiResponse(response.data, response.message)
         }
       } catch {
-        // Fallback
+        // Keep demo data only for read-only local previews.
       }
       return createApiResponse(runtimeCampuses, 'Campuses retrieved')
     }),
   createCampus: (campus) =>
     fetcher(async () => {
-      try {
-        const response = await requestBackend('/admin/campuses', {
-          method: 'POST',
-          body: campus,
-        })
-        return createApiResponse(response.data, response.message)
-      } catch {
-        const newCamp = {
-          _id: `cmp_${Date.now()}`,
-          ...campus,
-          user_count: 0,
-          listing_count: 0,
-          created_at: new Date().toISOString(),
-        }
-        runtimeCampuses = [newCamp, ...runtimeCampuses]
-        return createApiResponse(newCamp, 'Campus created successfully')
-      }
+      const response = await requestBackend('/admin/campuses', {
+        method: 'POST',
+        body: campus,
+      })
+      return createApiResponse(response.data, response.message)
     }),
   updateCampus: (campusId, updates) =>
     fetcher(async () => {
-      try {
-        const response = await requestBackend(`/admin/campuses/${campusId}`, {
-          method: 'PATCH',
-          body: updates,
-        })
-        return createApiResponse(response.data, response.message)
-      } catch {
-        runtimeCampuses = runtimeCampuses.map((c) => (c._id === campusId ? { ...c, ...updates } : c))
-        return createApiResponse({ _id: campusId, ...updates }, 'Campus updated')
-      }
+      const response = await requestBackend(`/admin/campuses/${campusId}`, {
+        method: 'PATCH',
+        body: updates,
+      })
+      return createApiResponse(response.data, response.message)
+    }),
+  deleteCampus: (campusId) =>
+    fetcher(async () => {
+      const response = await requestBackend(`/admin/campuses/${campusId}`, {
+        method: 'DELETE',
+      })
+      return createApiResponse(response.data, response.message)
     }),
 }

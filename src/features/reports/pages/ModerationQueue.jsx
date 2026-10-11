@@ -280,7 +280,7 @@ const ModerationQueue = () => {
 
               {/* Bottom: Action buttons toolbar */}
               <div className="mt-3.5 pt-3 border-t border-[#F1F5F9] dark:border-[#2D3748] flex flex-wrap items-center justify-end gap-2">
-                {item.target && item.targetModel === 'Product' && (
+                {isAdmin && item.target && item.targetModel === 'Product' && (
                   <>
                     <button
                       type="button"
@@ -311,7 +311,7 @@ const ModerationQueue = () => {
                   </>
                 )}
 
-                {item.target && item.targetModel === 'User' && (
+                {isAdmin && item.target && item.targetModel === 'User' && (
                   <>
                     {item.target.status !== 'suspended' ? (
                       <button

@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react'
 import { productsApi } from '../api/productsApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import Avatar from '../../../shared/components/Avatar'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const statusStyles = {
   Pending: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
@@ -32,6 +33,7 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
   const [activeTab, setActiveTab] = useState('Details')
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   useEffect(() => {
     if (!productId || String(productId).startsWith('PRD') || productId.length < 12) {
@@ -283,7 +285,8 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                     <button
                       type="button"
                       onClick={() => handleAction('Approved')}
-                      className="flex items-center justify-center gap-1.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white py-2.5 px-4 font-semibold text-xs shadow-sm shadow-emerald-500/20 transition active:scale-[0.98]"
+                      disabled={!canWrite}
+                      className="flex items-center justify-center gap-1.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white py-2.5 px-4 font-semibold text-xs shadow-sm shadow-emerald-500/20 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="20 6 9 17 4 12" />
@@ -293,7 +296,8 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                     <button
                       type="button"
                       onClick={() => handleAction('Rejected')}
-                      className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition active:scale-[0.98]"
+                      disabled={!canWrite}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -308,7 +312,8 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                     <button
                       type="button"
                       onClick={() => handleAction('Blocked')}
-                      className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition"
+                      disabled={!canWrite}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />

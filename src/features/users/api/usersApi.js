@@ -197,17 +197,20 @@ export const usersApi = {
 
   updateUserStatus: (userId, status) =>
     fetcher(async () => {
-      try {
-        const response = await requestBackend(`/admin/users/${userId}/status`, {
-          method: 'PATCH',
-          body: { status },
-        })
-        return createApiResponse(response.data, response.message)
-      } catch {
-        // Update local memory
-        runtimeUsers = runtimeUsers.map((u) => (u.id === userId ? { ...u, status } : u))
-        return createApiResponse({ id: userId, status }, `Status updated to ${status}`)
-      }
+      const response = await requestBackend(`/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        body: { status },
+      })
+      return createApiResponse(response.data, response.message)
+    }),
+
+  updateUserRole: (userId, role) =>
+    fetcher(async () => {
+      const response = await requestBackend(`/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        body: { role },
+      })
+      return createApiResponse(response.data, response.message)
     }),
 
   createUser: (userData) =>
@@ -254,4 +257,3 @@ export const usersApi = {
       }, 'User stats unavailable')
     }),
 }
-

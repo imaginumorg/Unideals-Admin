@@ -5,6 +5,7 @@ import Modal from '../../../shared/components/Modal'
 import { useToast } from '../../../shared/components/ToastContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { campusesApi } from '../api/campusesApi'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const blankCampusForm = {
   slug: '',
@@ -174,7 +175,9 @@ const Campuses = () => {
   const [editingCampus, setEditingCampus] = useState(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [pendingStatusCampus, setPendingStatusCampus] = useState(null)
+  const [pendingDeleteCampus, setPendingDeleteCampus] = useState(null)
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   const loadCampuses = useCallback(() => campusesApi.getCampuses(), [])
   const { data: campuses = [], loading, error, refetch } = useFetch(loadCampuses)
@@ -235,6 +238,21 @@ const Campuses = () => {
     setPendingStatusCampus(null)
   }, [pendingStatusCampus, refetch, showToast])
 
+  const confirmDeleteCampus = useCallback(async () => {
+    if (!pendingDeleteCampus) return
+
+    const response = await campusesApi.deleteCampus(pendingDeleteCampus._id)
+
+    if (response.success) {
+      showToast({ type: 'success', message: response.message || 'Campus deleted successfully' })
+      refetch()
+    } else {
+      showToast({ type: 'error', message: response.message || 'Failed to delete campus' })
+    }
+
+    setPendingDeleteCampus(null)
+  }, [pendingDeleteCampus, refetch, showToast])
+
   if (loading && !campuses.length) return <Loader rows={4} columns={6} />
 
   return (
@@ -244,9 +262,11 @@ const Campuses = () => {
           <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-[#0B1220]">Campus Management</h1>
           <p className="mt-1 text-[14px] text-[#475569]">Control campus availability, discovery metadata, and verified email domains.</p>
         </div>
-        <button type="button" onClick={() => setShowCreateModal(true)} className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm">
-          Add campus
-        </button>
+        {canWrite ? (
+          <button type="button" onClick={() => setShowCreateModal(true)} className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm">
+            Add campus
+          </button>
+        ) : null}
       </div>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -338,16 +358,26 @@ const Campuses = () => {
                       <td className="px-4 py-4 text-[13px] text-[#334155]">{formatDate(campus.updatedAt)}</td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => setEditingCampus(campus)} className="rounded-xl bg-[#F8FAFC] px-3 py-2 text-[12px] font-semibold text-[#334155]">
+                          <button type="button" disabled={!canWrite} onClick={() => setEditingCampus(campus)} className="rounded-xl bg-[#F8FAFC] px-3 py-2 text-[12px] font-semibold text-[#334155] disabled:cursor-not-allowed disabled:opacity-50">
                             Edit
                           </button>
                           <button
                             type="button"
+                            disabled={!canWrite}
                             onClick={() => setPendingStatusCampus(campus)}
-                            className={`rounded-xl px-3 py-2 text-[12px] font-semibold ${campus.is_active ? 'bg-[#FEF2F2] text-[#DC2626]' : 'bg-[#ECFDF3] text-[#15803D]'}`}
+                            className={`rounded-xl px-3 py-2 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${campus.is_active ? 'bg-[#FEF2F2] text-[#DC2626]' : 'bg-[#ECFDF3] text-[#15803D]'}`}
                           >
                             {campus.is_active ? 'Pause' : 'Activate'}
                           </button>
+                          {canWrite ? (
+                            <button
+                              type="button"
+                              onClick={() => setPendingDeleteCampus(campus)}
+                              className="rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 px-3 py-2 text-[12px] font-semibold text-rose-600 dark:text-rose-400 transition"
+                            >
+                              Delete
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -390,6 +420,20 @@ const Campuses = () => {
         tone={pendingStatusCampus?.is_active ? 'danger' : 'default'}
         onClose={() => setPendingStatusCampus(null)}
         onConfirm={confirmStatusChange}
+      />
+
+      <Modal
+        open={Boolean(pendingDeleteCampus)}
+        title="Delete campus"
+        description={
+          pendingDeleteCampus
+            ? `Are you sure you want to permanently delete "${pendingDeleteCampus.name}"? Users linked to this campus will be prompted to pick an active campus.`
+            : ''
+        }
+        confirmLabel="Delete campus"
+        tone="danger"
+        onClose={() => setPendingDeleteCampus(null)}
+        onConfirm={confirmDeleteCampus}
       />
     </div>
   )

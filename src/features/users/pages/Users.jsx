@@ -3,6 +3,7 @@ import { usersApi } from '../api/usersApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import UserDetailsDrawer from '../components/UserDetailsDrawer'
 import Avatar from '../../../shared/components/Avatar'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const campusBadgeStyles = {
   'VIT Vellore': 'bg-[#F3E8FF] text-[#7E22CE] dark:bg-[#581C87]/40 dark:text-[#D8B4FE]',
@@ -24,6 +25,12 @@ const formatDisplayDate = (dateValue) => {
   } catch {
     return '—'
   }
+}
+
+const getCampusLabel = (campus) => {
+  if (!campus) return 'Not assigned'
+  if (typeof campus === 'string') return campus
+  return campus.short_name || campus.name || 'Not assigned'
 }
 
 const Users = () => {
@@ -50,6 +57,7 @@ const Users = () => {
     newUsersGrowth: 0,
   })
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -112,12 +120,24 @@ const Users = () => {
   }
 
   const handleStatusChange = async (userId, nextStatus) => {
+    if (!canWrite) return { success: false, message: 'Support users can view user details but cannot update accounts.' }
     const res = await usersApi.updateUserStatus(userId, nextStatus)
     if (res.success) {
       showToast({ type: 'success', message: `User status changed to ${nextStatus}` })
       loadData()
     }
     return res
+  }
+
+  const handleRoleChange = async (userId, nextRole) => {
+    if (!canWrite) return
+    const res = await usersApi.updateUserRole(userId, nextRole)
+    if (res.success) {
+      showToast({ type: 'success', message: nextRole === 'support' ? 'User is now support' : 'Support access removed' })
+      loadData()
+    } else {
+      showToast({ type: 'error', message: res.message })
+    }
   }
 
   const handleAddUser = async (e) => {
@@ -145,17 +165,19 @@ const Users = () => {
           </p>
         </div>
         <div>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            <span>Add User</span>
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+              <span>Add User</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -366,6 +388,7 @@ const Users = () => {
                 <th className="py-3.5 px-4">Email</th>
                 <th className="py-3.5 px-4">Campus</th>
                 <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Role</th>
                 <th className="py-3.5 px-4 text-center">Listings</th>
                 <th className="py-3.5 px-4 text-center">Orders</th>
                 <th className="py-3.5 px-4">Joined</th>
@@ -375,13 +398,13 @@ const Users = () => {
             <tbody className="divide-y divide-[#F1F5F9] dark:divide-[#1E293B] text-[#334155] dark:text-[#CBD5E1]">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
+                  <td colSpan={10} className="py-12 text-center text-[#94A3B8]">
                     Loading user records...
                   </td>
                 </tr>
               ) : usersList.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
+                  <td colSpan={10} className="py-12 text-center text-[#94A3B8]">
                     No users found matching your filters.
                   </td>
                 </tr>
@@ -389,7 +412,8 @@ const Users = () => {
                 usersList.map((user) => {
                   const isSelected = selectedUserIds.has(user.id)
                   const isViewing = selectedUserId === user.id
-                  const campusBadge = campusBadgeStyles[user.campus] || 'bg-slate-100 text-slate-700'
+                  const campusLabel = getCampusLabel(user.campus)
+                  const campusBadge = campusBadgeStyles[campusLabel] || 'bg-slate-100 text-slate-700'
 
                   return (
                     <tr
@@ -433,7 +457,7 @@ const Users = () => {
                       {/* Campus Badge */}
                       <td className="py-3.5 px-4">
                         <span className={`inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold ${campusBadge}`}>
-                          {user.campus}
+                          {campusLabel}
                         </span>
                       </td>
 
@@ -448,6 +472,12 @@ const Users = () => {
                         >
                           <span className={`h-1.5 w-1.5 rounded-full ${user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
                           {user.status === 'suspended' ? 'Suspended' : 'Active'}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${user.role === 'support' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
+                          {user.role === 'support' ? 'Support' : 'User'}
                         </span>
                       </td>
 
@@ -468,17 +498,28 @@ const Users = () => {
 
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedUserId(user.id)}
-                          className="p-1 rounded-lg hover:bg-[#EEF2F6] dark:hover:bg-[#1E293B] text-[#94A3B8] hover:text-[#0B1220] dark:hover:text-white transition"
-                        >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="1" />
-                            <circle cx="19" cy="12" r="1" />
-                            <circle cx="5" cy="12" r="1" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          {canWrite ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRoleChange(user.id, user.role === 'support' ? 'user' : 'support')}
+                              className="rounded-lg border border-[#E2E8F0] px-2 py-1 text-[11px] font-semibold text-[#334155] hover:bg-[#F8FAFC] dark:border-[#334155] dark:text-[#CBD5E1]"
+                            >
+                              {user.role === 'support' ? 'Remove support' : 'Make support'}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserId(user.id)}
+                            className="p-1 rounded-lg hover:bg-[#EEF2F6] dark:hover:bg-[#1E293B] text-[#94A3B8] hover:text-[#0B1220] dark:hover:text-white transition"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="1" />
+                              <circle cx="19" cy="12" r="1" />
+                              <circle cx="5" cy="12" r="1" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -553,6 +594,7 @@ const Users = () => {
         userId={selectedUserId}
         onClose={() => setSelectedUserId(null)}
         onStatusChange={handleStatusChange}
+        onRoleChange={handleRoleChange}
       />
 
       {/* Add User Modal */}

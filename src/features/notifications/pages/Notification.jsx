@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo, useState } from 'react'
 import Loader from '../../../shared/components/Loader'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { notificationsApi } from '../api/notificationsApi'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const statusStyles = {
   SENT: 'text-primary',
@@ -30,6 +31,7 @@ const Notification = () => {
   const [recipientMode, setRecipientMode] = useState('all_users')
   const [deliveryMode, setDeliveryMode] = useState('send_now')
   const [channelMode, setChannelMode] = useState('in_app')
+  const { canWrite } = useAuth()
 
   const loadNotificationCenter = useCallback(() => notificationsApi.getNotificationCenter(), [])
   const { data: notificationData, loading } = useFetch(loadNotificationCenter)
@@ -59,11 +61,24 @@ const Notification = () => {
       <div className="space-y-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-[#0B1220]">Send Notification</h1>
-          <div className="flex gap-3">
-            <button type="button" className="rounded-xl bg-[#F8FAFC] px-4 py-2.5 text-sm font-semibold text-[#334155]">
+          <div className="flex items-center gap-3">
+            {!canWrite && (
+              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
+                Support: View-only
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={!canWrite}
+              className="rounded-xl bg-[#F8FAFC] px-4 py-2.5 text-sm font-semibold text-[#334155] disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Save Draft
             </button>
-            <button type="button" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm">
+            <button
+              type="button"
+              disabled={!canWrite}
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Send Now
             </button>
           </div>

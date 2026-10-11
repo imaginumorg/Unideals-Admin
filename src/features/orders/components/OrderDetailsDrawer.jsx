@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react'
 import { ordersApi } from '../api/ordersApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import Avatar from '../../../shared/components/Avatar'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const statusStyles = {
   delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -47,6 +48,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
   const [updating, setUpdating] = useState(false)
   const [selectedNextStatus, setSelectedNextStatus] = useState('')
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   useEffect(() => {
     if (!orderId) {
@@ -486,6 +488,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   <select
                     value={selectedNextStatus}
                     onChange={(e) => setSelectedNextStatus(e.target.value)}
+                    disabled={!canWrite}
                     className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1E293B] px-3 py-2 text-xs text-[#0B1220] dark:text-white outline-none focus:border-primary"
                   >
                     <option value="pending">Pending</option>
@@ -496,7 +499,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   </select>
                   <button
                     onClick={handleStatusUpdate}
-                    disabled={updating || selectedNextStatus === order.status}
+                    disabled={!canWrite || updating || selectedNextStatus === order.status}
                     className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-semibold disabled:opacity-50 transition"
                   >
                     {updating ? 'Saving...' : 'Update'}

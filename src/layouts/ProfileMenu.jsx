@@ -35,7 +35,7 @@ const ProfileMenu = () => {
   }
 
   const displayName = admin?.name || 'Kamal Sinha'
-  const displayRole = admin?.roleLabel || (admin?.role === 'admin' ? 'Super Admin' : 'Admin')
+  const displayRole = admin?.roleLabel || (admin?.role === 'admin' ? 'Super Admin' : admin?.role === 'support' ? 'Support' : 'Admin')
   const initials = admin?.initials || 'KS'
 
   return (

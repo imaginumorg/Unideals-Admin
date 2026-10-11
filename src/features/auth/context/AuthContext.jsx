@@ -86,6 +86,10 @@ export const AuthProvider = ({ children }) => {
     () => ({
       admin: authenticatedAdmin,
       isAuthenticated: Boolean(authenticatedAdmin),
+      isAdmin: authenticatedAdmin?.role === 'admin',
+      isSupport: authenticatedAdmin?.role === 'support',
+      canWrite: authenticatedAdmin?.role === 'admin',
+      canManageReports: ['admin', 'support'].includes(authenticatedAdmin?.role),
       sessionLoading,
       login,
       logout,

@@ -4,6 +4,7 @@ import { campusesApi } from '../../campuses/api/campusesApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import Avatar from '../../../shared/components/Avatar'
 import OrderDetailsDrawer from '../components/OrderDetailsDrawer'
+import { useAuth } from '../../auth/context/AuthContext'
 
 const statusStyles = {
   delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -114,6 +115,7 @@ const Orders = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState(new Set())
   const [drawerOrderId, setDrawerOrderId] = useState(null)
   const { showToast } = useToast()
+  const { canWrite } = useAuth()
 
   // Load campus list for filter dropdown
   useEffect(() => {
@@ -217,6 +219,7 @@ const Orders = () => {
   }
 
   const handleStatusChangeFromDrawer = async (orderId, newStatus) => {
+    if (!canWrite) return { success: false, message: 'Support users can inspect orders but cannot update order stages.' }
     try {
       const res = await ordersApi.updateOrderStatus(orderId, newStatus)
       if (res?.success) {

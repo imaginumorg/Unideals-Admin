@@ -308,15 +308,11 @@ export const productsApi = {
         else if (s === 'blocked') backendUpdates.status = 'blocked'
         else if (s === 'pending') backendUpdates.status = 'draft'
       }
-      try {
-        const response = await requestBackend(`/admin/products/${productId}/status`, {
-          method: 'PATCH',
-          body: backendUpdates,
-        })
-        return createApiResponse(response.data, response.message)
-      } catch {
-        return createApiResponse({ id: productId, ...updates }, 'Product updated locally')
-      }
+      const response = await requestBackend(`/admin/products/${productId}/status`, {
+        method: 'PATCH',
+        body: backendUpdates,
+      })
+      return createApiResponse(response.data, response.message)
     }),
 
   createProduct: (productData) =>
