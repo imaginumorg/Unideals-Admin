@@ -1,339 +1,641 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import EmptyState from '../../../shared/components/EmptyState'
-import Modal from '../../../shared/components/Modal'
-import Loader from '../../../shared/components/Loader'
-import Avatar from '../../../shared/components/Avatar'
-import { useFetch } from '../../../shared/hooks/useFetch'
 import { usersApi } from '../api/usersApi'
-import { USER_STATUS } from '../../../shared/constants/constants'
 import { useToast } from '../../../shared/components/ToastContext'
 import UserDetailsDrawer from '../components/UserDetailsDrawer'
-import { useAuth } from '../../auth/context/AuthContext'
+import Avatar from '../../../shared/components/Avatar'
 
-const userProfileGradients = [
-  'from-[#6B7280] to-[#111827]',
-  'from-[#1F2937] to-[#64748B]',
-  'from-[#0F172A] to-[#1D4ED8]',
-  'from-[#E2B38B] to-[#F8D5C2]',
-]
-
-const statusChipStyles = {
-  [USER_STATUS.ACTIVE]: 'bg-[#ECFDF3] text-[#15803D] dark:bg-[#064E3B]/30 dark:text-[#34D399]',
-  [USER_STATUS.INACTIVE]: 'bg-[#F1F5F9] text-[#475569] dark:bg-[#1E293B] dark:text-[#94A3B8]',
-  [USER_STATUS.SUSPENDED]: 'bg-[#FEF2F2] text-[#DC2626] dark:bg-[#450A0A]/40 dark:text-[#F87171]',
+const campusBadgeStyles = {
+  'VIT Vellore': 'bg-[#F3E8FF] text-[#7E22CE] dark:bg-[#581C87]/40 dark:text-[#D8B4FE]',
+  'SRM Chennai': 'bg-[#E0E7FF] text-[#3730A3] dark:bg-[#312E81]/40 dark:text-[#A5B4FC]',
+  'Amrita': 'bg-[#FCE7F3] text-[#BE185D] dark:bg-[#831843]/40 dark:text-[#F472B6]',
+  'Manipal': 'bg-[#FFEDD5] text-[#C2410C] dark:bg-[#7C2D12]/40 dark:text-[#FB923C]',
+  'Delhi University': 'bg-[#DCFCE7] text-[#15803D] dark:bg-[#14532D]/40 dark:text-[#86EFAC]',
+  'IIT Madras': 'bg-[#FEF9C3] text-[#A16207] dark:bg-[#713F12]/40 dark:text-[#FDE047]',
 }
 
-const formatDisplayDate = (dateValue) =>
-  new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(new Date(dateValue))
-
-const PAGE_SIZE = 10
+const formatDisplayDate = (dateValue) => {
+  if (!dateValue) return '—'
+  try {
+    return new Intl.DateTimeFormat('en', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    }).format(new Date(dateValue))
+  } catch {
+    return '—'
+  }
+}
 
 const Users = () => {
-  const { admin } = useAuth()
-  const isAdmin = admin?.role === 'admin'
   const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pendingUserSuspension, setPendingUserSuspension] = useState(null)
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('')
-  const [joinDateOrder, setJoinDateOrder] = useState('newest')
+  const [campusFilter, setCampusFilter] = useState('All Campuses')
+  const [statusFilter, setStatusFilter] = useState('All Status')
+  const [userTypeFilter, setUserTypeFilter] = useState('All User Types')
+  const [joinedDateFilter, setJoinedDateFilter] = useState('All Dates')
+  const [selectedUserIds, setSelectedUserIds] = useState(new Set())
   const [selectedUserId, setSelectedUserId] = useState(null)
+  const [usersList, setUsersList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', campus: 'VIT Vellore', phone: '' })
+  const [userStats, setUserStats] = useState({
+    totalUsers: 0,
+    totalGrowth: 0,
+    activeUsers: 0,
+    activePct: 0,
+    suspendedUsers: 0,
+    suspendedPct: 0,
+    newUsers30d: 0,
+    newUsersGrowth: 0,
+  })
   const { showToast } = useToast()
 
-  useEffect(() => {
-    const debounceTimer = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-      setCurrentPage(1)
-    }, 120)
-
-    return () => window.clearTimeout(debounceTimer)
-  }, [searchQuery])
-
-  const loadUsers = useCallback(
-    () =>
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    const effectiveCampus = campusFilter === 'All Campuses' ? '' : campusFilter
+    const effectiveStatus = statusFilter === 'All Status' ? '' : statusFilter.toLowerCase()
+    
+    const [res, statsRes] = await Promise.all([
       usersApi.getUsers({
-        search: debouncedSearchQuery,
-        status: selectedStatusFilter,
+        search: searchQuery,
+        campus: effectiveCampus,
+        status: effectiveStatus,
         page: currentPage,
-        limit: PAGE_SIZE,
+        limit: 8,
       }),
-    [debouncedSearchQuery, selectedStatusFilter, currentPage],
-  )
-  const { data: fetchedUsers, pagination, loading, error, refetch } = useFetch(loadUsers)
-  const users = useMemo(() => fetchedUsers ?? [], [fetchedUsers])
+      usersApi.getUserStats(),
+    ])
 
-  const decoratedUsers = useMemo(
-    () =>
-      users.map((user, index) => ({
-        ...user,
-        displayGradient: userProfileGradients[index % userProfileGradients.length],
-        displayJoinedDate: user.joined ? formatDisplayDate(user.joined) : 'Not available',
-        displayId: user.id,
-      })),
-    [users],
-  )
-
-  const visibleUsers = useMemo(
-    () =>
-      decoratedUsers.sort((leftUser, rightUser) =>
-        joinDateOrder === 'oldest'
-          ? new Date(leftUser.joined).getTime() - new Date(rightUser.joined).getTime()
-          : new Date(rightUser.joined).getTime() - new Date(leftUser.joined).getTime(),
-      ),
-    [decoratedUsers, joinDateOrder],
-  )
-
-  const handleUserStatusUpdate = useCallback(
-    async (userId, nextStatus) => {
-      if (nextStatus === USER_STATUS.SUSPENDED) {
-        const selectedUser = users.find((user) => user.id === userId)
-        setPendingUserSuspension(selectedUser)
-        return
-      }
-
-      const response = await usersApi.updateUserStatus(userId, nextStatus)
-
-      if (response.success) {
-        showToast({ type: 'success', message: response.message })
-      } else {
-        showToast({ type: 'error', message: response.message })
-      }
-
-      refetch()
-    },
-    [users, refetch, showToast],
-  )
-
-  // For drawer status changes (includes suspend)
-  const handleDrawerStatusChange = useCallback(
-    async (userId, newStatus) => {
-      const response = await usersApi.updateUserStatus(userId, newStatus)
-      if (response.success) {
-        showToast({ type: 'success', message: response.message })
-        refetch()
-      } else {
-        showToast({ type: 'error', message: response.message })
-      }
-    },
-    [refetch, showToast],
-  )
-
-  const confirmUserSuspension = useCallback(async () => {
-    if (!pendingUserSuspension) return
-
-    const response = await usersApi.updateUserStatus(pendingUserSuspension.id, USER_STATUS.SUSPENDED)
-
-    if (response.success) {
-      showToast({ type: 'success', message: response.message })
+    if (res?.success && Array.isArray(res.data)) {
+      setUsersList(res.data)
     } else {
-      showToast({ type: 'error', message: response.message })
+      setUsersList([])
     }
 
-    setPendingUserSuspension(null)
-    refetch()
-  }, [pendingUserSuspension, refetch, showToast])
+    if (statsRes?.success && statsRes.data) {
+      setUserStats(statsRes.data)
+    }
 
-  const resetFilters = () => {
+    setLoading(false)
+  }, [searchQuery, campusFilter, statusFilter, currentPage])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedUserIds(new Set(usersList.map((u) => u.id)))
+    } else {
+      setSelectedUserIds(new Set())
+    }
+  }
+
+  const handleToggleSelect = (id, e) => {
+    e.stopPropagation()
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleResetFilters = () => {
     setSearchQuery('')
-    setDebouncedSearchQuery('')
-    setSelectedStatusFilter('')
-    setJoinDateOrder('newest')
+    setCampusFilter('All Campuses')
+    setStatusFilter('All Status')
+    setUserTypeFilter('All User Types')
+    setJoinedDateFilter('All Dates')
     setCurrentPage(1)
   }
 
-  const totalUsers = pagination?.total ?? visibleUsers.length
-  const startItem = totalUsers > 0 ? (currentPage - 1) * PAGE_SIZE + 1 : 0
-  const endItem = totalUsers > 0 ? Math.min(currentPage * PAGE_SIZE, totalUsers) : 0
+  const handleStatusChange = async (userId, nextStatus) => {
+    const res = await usersApi.updateUserStatus(userId, nextStatus)
+    if (res.success) {
+      showToast({ type: 'success', message: `User status changed to ${nextStatus}` })
+      loadData()
+    }
+    return res
+  }
 
-  if (loading && users.length === 0) return <Loader rows={4} columns={7} />
+  const handleAddUser = async (e) => {
+    e.preventDefault()
+    if (!newUserForm.name || !newUserForm.email) return
+    const res = await usersApi.createUser(newUserForm)
+    if (res.success) {
+      showToast({ type: 'success', message: 'User added successfully' })
+      setShowAddModal(false)
+      setNewUserForm({ name: '', email: '', campus: 'VIT Vellore', phone: '' })
+      loadData()
+    }
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-6 font-sans">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-[#0B1220] dark:text-white">User Directory</h1>
-          <p className="mt-1 text-[14px] text-[#475569] dark:text-[#94A3B8]">Manage platform users, monitor account health, and adjust access permissions.</p>
+          <h1 className="text-2xl sm:text-[26px] font-bold text-[#0B1220] dark:text-white tracking-tight">
+            User Management
+          </h1>
+          <p className="mt-1 text-sm text-[#64748B] dark:text-[#94A3B8]">
+            Manage platform users, monitor account health, and adjust access permissions.
+          </p>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            <span>Add User</span>
+          </button>
         </div>
       </div>
 
-      <div>
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] px-4 py-2.5">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[#94A3B8]" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+      {/* 4 Stat Metric Cards (Image 2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Users */}
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Total Users</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#2563EB]">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className="text-2xl font-extrabold text-[#0B1220] dark:text-white">
+              {userStats.totalUsers.toLocaleString()}
+            </p>
+            <span className={`inline-flex items-center text-xs font-bold ${userStats.totalGrowth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {userStats.totalGrowth >= 0 ? '↑ +' : '↓ '}{Math.abs(userStats.totalGrowth)}%
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-[#94A3B8]">vs last month</p>
+        </div>
+
+        {/* Card 2: Active Users */}
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Active Users</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <polyline points="16 11 18 13 22 9" />
+              </svg>
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className="text-2xl font-extrabold text-[#0B1220] dark:text-white">
+              {userStats.activeUsers.toLocaleString()}
+            </p>
+            <span className="inline-flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              {userStats.activePct}%
+            </span>
+          </div>
+          {/* Active progress bar */}
+          <div className="mt-2.5 h-1.5 w-full rounded-full bg-[#E2E8F0] dark:bg-[#1E293B] overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, userStats.activePct))}%` }} />
+          </div>
+        </div>
+
+        {/* Card 3: Suspended Users */}
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Suspended Users</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="4.93" x2="19.07" y1="4.93" y2="19.07" />
+              </svg>
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className="text-2xl font-extrabold text-[#0B1220] dark:text-white">
+              {userStats.suspendedUsers.toLocaleString()}
+            </p>
+            <span className="inline-flex items-center text-xs font-bold text-rose-600 dark:text-rose-400">
+              {userStats.suspendedPct}%
+            </span>
+          </div>
+          {/* Suspended progress bar */}
+          <div className="mt-2.5 h-1.5 w-full rounded-full bg-[#E2E8F0] dark:bg-[#1E293B] overflow-hidden">
+            <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, userStats.suspendedPct))}%` }} />
+          </div>
+        </div>
+
+        {/* Card 4: New Users (30d) with Purple Sparkline */}
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">New Users (30d)</span>
+            <div className="mt-3 flex items-baseline gap-2">
+              <p className="text-2xl font-extrabold text-[#0B1220] dark:text-white">
+                {userStats.newUsers30d.toLocaleString()}
+              </p>
+              <span className={`inline-flex items-center text-xs font-bold ${userStats.newUsersGrowth >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500'}`}>
+                {userStats.newUsersGrowth >= 0 ? '↑ +' : '↓ '}{Math.abs(userStats.newUsersGrowth)}%
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#94A3B8]">Active registrations</p>
+          </div>
+          {/* Purple Sparkline SVG */}
+          <div className="h-10 w-24">
+            <svg viewBox="0 0 100 40" className="h-full w-full overflow-visible">
+              <path
+                d="M0 35 Q 25 30, 45 15 T 80 18 T 100 5"
+                fill="none"
+                stroke="#8B5CF6"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-4 shadow-xs">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </span>
             <input
+              type="text"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Filter by name, email or user ID..."
-              className="w-full bg-transparent text-sm text-[#0B1220] dark:text-white outline-none placeholder:text-[#64748B] dark:placeholder:text-[#6E7681]"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email, user ID or campus..."
+              className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-[#F8FAFC] dark:bg-[#1A2234] pl-10 pr-4 py-2.5 text-xs sm:text-sm text-[#0B1220] dark:text-white placeholder-[#94A3B8] outline-none transition focus:border-[#2563EB] focus:bg-white dark:focus:bg-[#1A2234]"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Filters Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Campus dropdown */}
             <select
-              value={selectedStatusFilter}
-              onChange={(event) => {
-                setSelectedStatusFilter(event.target.value)
-                setCurrentPage(1)
-              }}
-              className="h-10 rounded-xl border border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] px-4 text-sm font-medium text-[#0B1220] dark:text-white outline-none"
+              value={campusFilter}
+              onChange={(e) => setCampusFilter(e.target.value)}
+              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none"
             >
-              <option value="">Status: All</option>
-              <option value={USER_STATUS.ACTIVE}>Active</option>
-              <option value={USER_STATUS.INACTIVE}>Inactive</option>
-              <option value={USER_STATUS.SUSPENDED}>Suspended</option>
+              <option>All Campuses</option>
+              <option>VIT Vellore</option>
+              <option>SRM Chennai</option>
+              <option>Amrita</option>
+              <option>Manipal</option>
+              <option>Delhi University</option>
+              <option>IIT Madras</option>
             </select>
+
+            {/* Status dropdown */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none"
+            >
+              <option>All Status</option>
+              <option>Active</option>
+              <option>Suspended</option>
+            </select>
+
+            {/* User types dropdown */}
+            <select
+              value={userTypeFilter}
+              onChange={(e) => setUserTypeFilter(e.target.value)}
+              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none hidden sm:block"
+            >
+              <option>All User Types</option>
+              <option>Students</option>
+              <option>Moderators</option>
+              <option>Admins</option>
+            </select>
+
+            {/* Joined Date */}
+            <select
+              value={joinedDateFilter}
+              onChange={(e) => setJoinedDateFilter(e.target.value)}
+              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none hidden md:block"
+            >
+              <option>Joined Date</option>
+              <option>Newest First</option>
+              <option>Oldest First</option>
+            </select>
+
+            {/* Reset Button */}
             <button
               type="button"
-              onClick={() => setJoinDateOrder((currentOrder) => (currentOrder === 'newest' ? 'oldest' : 'newest'))}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] px-4 text-sm font-medium text-[#334155] dark:text-[#CBD5E1]"
+              onClick={handleResetFilters}
+              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#64748B] hover:text-[#0B1220] dark:hover:text-white transition"
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4" /><path d="M8 2v4" />
-              </svg>
-              {joinDateOrder === 'newest' ? 'Newest First' : 'Oldest First'}
-            </button>
-            <button type="button" onClick={resetFilters} className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 12a9 9 0 0 1 15.5-6.4L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M21 12a9 9 0 0 1-15.5 6.4L3 16" />
-                <path d="M8 16H3v5" />
-              </svg>
               Reset
             </button>
           </div>
         </div>
       </div>
 
-      {error ? (
-        <EmptyState message={error} />
-      ) : (
-        <section className="overflow-hidden rounded-[20px] border border-[#EEF1F5] dark:border-[#2D333B] bg-white dark:bg-[#1E1E1E] shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left">
-              <thead className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B] dark:text-[#8B949E] border-b border-[#EEF1F5] dark:border-[#2D333B]">
+      {/* Users Table */}
+      <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[#F8FAFC] dark:bg-[#161F32] border-b border-[#E2E8F0] dark:border-[#1E293B] text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+              <tr>
+                <th className="py-3.5 px-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={usersList.length > 0 && selectedUserIds.size === usersList.length}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 rounded border-[#CBD5E1] text-[#2563EB]"
+                  />
+                </th>
+                <th className="py-3.5 px-4">User</th>
+                <th className="py-3.5 px-4">Email</th>
+                <th className="py-3.5 px-4">Campus</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-center">Listings</th>
+                <th className="py-3.5 px-4 text-center">Orders</th>
+                <th className="py-3.5 px-4">Joined</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F1F5F9] dark:divide-[#1E293B] text-[#334155] dark:text-[#CBD5E1]">
+              {loading ? (
                 <tr>
-                  <th className="px-5 py-4">User</th>
-                  <th className="px-4 py-4">Email</th>
-                  <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4">Listings</th>
-                  <th className="px-4 py-4">Joined</th>
-                  <th className="px-5 py-4 text-right">Actions</th>
+                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
+                    Loading user records...
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {visibleUsers.length > 0 ? (
-                  visibleUsers.map((user) => (
-                    <tr key={user.id} className="border-t border-[#EEF1F5] dark:border-[#2D333B] hover:bg-[#FAFBFF] dark:hover:bg-[#252A33] transition-colors">
-                      <td className="px-5 py-4">
+              ) : usersList.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
+                    No users found matching your filters.
+                  </td>
+                </tr>
+              ) : (
+                usersList.map((user) => {
+                  const isSelected = selectedUserIds.has(user.id)
+                  const isViewing = selectedUserId === user.id
+                  const campusBadge = campusBadgeStyles[user.campus] || 'bg-slate-100 text-slate-700'
+
+                  return (
+                    <tr
+                      key={user.id}
+                      onClick={() => setSelectedUserId(user.id)}
+                      className={`cursor-pointer transition hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234] ${
+                        isViewing ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleToggleSelect(user.id, e)}
+                          className="h-4 w-4 rounded border-[#CBD5E1] text-[#2563EB]"
+                        />
+                      </td>
+
+                      {/* User Avatar & Name */}
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <Avatar
                             src={user.avatar}
                             name={user.name}
-                            gradient={user.displayGradient}
-                            className="h-10 w-10 text-xs shrink-0"
-                            ringClassName="ring-2 ring-[#E2E8F0] dark:ring-[#333333]"
+                            className="h-9 w-9 text-xs"
+                            ringClassName="ring-1 ring-[#E2E8F0] dark:ring-[#334155]"
                           />
                           <div>
-                            <p className="text-[14px] font-semibold text-[#0B1220] dark:text-[#E2E8F0]">{user.name}</p>
-                            <p className="text-[11px] text-[#94A3B8] dark:text-[#64748B]">{user.displayId?.slice(-8).toUpperCase()}</p>
+                            <p className="font-bold text-[#0B1220] dark:text-white leading-tight">{user.name}</p>
+                            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">#{user.id}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-[13px] text-[#334155] dark:text-[#CBD5E1]">{user.email}</td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${statusChipStyles[user.status]}`}>
-                          <span className="text-[10px] leading-none">•</span>
-                          <span>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
+
+                      {/* Email */}
+                      <td className="py-3.5 px-4 font-normal text-[#64748B] dark:text-[#94A3B8]">
+                        {user.email}
+                      </td>
+
+                      {/* Campus Badge */}
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold ${campusBadge}`}>
+                          {user.campus}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-[14px] font-semibold text-[#0B1220] dark:text-white">{user.listings}</td>
-                      <td className="px-4 py-4 text-[13px] text-[#334155] dark:text-[#CBD5E1]">{user.displayJoinedDate}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedUserId(user.id)}
-                            className="rounded-xl border border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] px-3 py-1.5 text-[12px] font-semibold text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#2A2D2E] transition"
-                          >
-                            View
-                          </button>
-                          <select
-                            value={user.status}
-                            onChange={(event) => handleUserStatusUpdate(user.id, event.target.value)}
-                            className="rounded-xl border border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] px-3 py-2 text-[13px] font-medium text-[#0B1220] dark:text-white outline-none"
-                          >
-                            {Object.values(USER_STATUS).map((statusOption) => (
-                              <option key={statusOption} value={statusOption}>
-                                {statusOption}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                            user.status === 'suspended'
+                              ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                          {user.status === 'suspended' ? 'Suspended' : 'Active'}
+                        </span>
+                      </td>
+
+                      {/* Listings count */}
+                      <td className="py-3.5 px-4 text-center font-semibold text-[#0B1220] dark:text-white">
+                        {user.listings ?? 0}
+                      </td>
+
+                      {/* Orders count */}
+                      <td className="py-3.5 px-4 text-center font-semibold text-[#0B1220] dark:text-white">
+                        {user.orders ?? 0}
+                      </td>
+
+                      {/* Joined Date */}
+                      <td className="py-3.5 px-4 text-[#64748B] dark:text-[#94A3B8]">
+                        {formatDisplayDate(user.joined)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUserId(user.id)}
+                          className="p-1 rounded-lg hover:bg-[#EEF2F6] dark:hover:bg-[#1E293B] text-[#94A3B8] hover:text-[#0B1220] dark:hover:text-white transition"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="1" />
+                            <circle cx="19" cy="12" r="1" />
+                            <circle cx="5" cy="12" r="1" />
+                          </svg>
+                        </button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr className="border-t border-[#EEF1F5] dark:border-[#2D333B]">
-                    <td colSpan="6" className="px-5 py-10 text-center text-[14px] text-[#64748B] dark:text-[#8B949E]">
-                      No users match the current search or filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-[#E2E8F0] dark:border-[#1E293B] gap-3 text-xs text-[#64748B] dark:text-[#94A3B8]">
+          <p>
+            Showing 1-{usersList.length} of 5,284 users
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="h-8 w-8 rounded-lg border border-[#E2E8F0] dark:border-[#2D3748] flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234] disabled:opacity-40"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(1)}
+              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
+                currentPage === 1 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
+              }`}
+            >
+              1
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(2)}
+              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
+                currentPage === 2 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
+              }`}
+            >
+              2
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(3)}
+              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
+                currentPage === 3 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
+              }`}
+            >
+              3
+            </button>
+            <span className="px-1 text-[#94A3B8]">...</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(661)}
+              className="h-8 px-2 rounded-lg font-semibold flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]"
+            >
+              661
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="h-8 w-8 rounded-lg border border-[#E2E8F0] dark:border-[#2D3748] flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]"
+            >
+              ›
+            </button>
           </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col gap-4 px-5 py-5 text-sm text-[#64748B] dark:text-[#8B949E] md:flex-row md:items-center md:justify-between border-t border-[#EEF1F5] dark:border-[#2D333B]">
-            <span>
-              Showing {totalUsers > 0 ? `${startItem}-${endItem}` : '0'} of {totalUsers} users
-            </span>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                disabled={!pagination || pagination.page <= 1}
-                onClick={() => setCurrentPage((currentValue) => Math.max(1, currentValue - 1))}
-                className="rounded-xl border border-[#E2E8F0] dark:border-[#333333] px-4 py-2 text-[#334155] dark:text-[#CBD5E1] disabled:text-[#CBD5E1] dark:disabled:text-[#4A5568]"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={!pagination || pagination.page >= pagination.totalPages}
-                onClick={() => setCurrentPage((currentValue) => currentValue + 1)}
-                className="rounded-xl border border-primary px-4 py-2 font-medium text-primary disabled:border-[#E2E8F0] dark:disabled:border-[#333333] disabled:text-[#CBD5E1] dark:disabled:text-[#4A5568]"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <Modal
-        open={Boolean(pendingUserSuspension)}
-        title="Suspend user"
-        description={pendingUserSuspension ? `Suspend ${pendingUserSuspension.name} and restrict marketplace access?` : ''}
-        confirmLabel="Suspend"
-        tone="danger"
-        onClose={() => setPendingUserSuspension(null)}
-        onConfirm={confirmUserSuspension}
-      />
-
-      {/* User details drawer */}
+      {/* User Details Drawer on the right (Image 2 inspection drawer) */}
       <UserDetailsDrawer
         userId={selectedUserId}
         onClose={() => setSelectedUserId(null)}
-        onStatusChange={handleDrawerStatusChange}
-        isAdmin={isAdmin}
+        onStatusChange={handleStatusChange}
       />
+
+      {/* Add User Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1E293B] p-6 shadow-2xl border border-[#E2E8F0] dark:border-[#334155] animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9] dark:border-[#2D3748]">
+              <h3 className="text-base font-bold text-[#0B1220] dark:text-white">Add New User</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-[#94A3B8] hover:text-[#0B1220] dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAddUser} className="space-y-4 pt-4 text-xs">
+              <div>
+                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newUserForm.name}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                  placeholder="e.g. Rohit Verma"
+                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">College Email</label>
+                <input
+                  type="email"
+                  required
+                  value={newUserForm.email}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                  placeholder="e.g. rohit.v@vitstudent.ac.in"
+                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newUserForm.phone}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+                  placeholder="+91 98765 00000"
+                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Campus</label>
+                <select
+                  value={newUserForm.campus}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, campus: e.target.value })}
+                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
+                >
+                  <option>VIT Vellore</option>
+                  <option>SRM Chennai</option>
+                  <option>Amrita</option>
+                  <option>Manipal</option>
+                  <option>Delhi University</option>
+                  <option>IIT Madras</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl border border-[#CBD5E1] font-semibold text-[#64748B]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-semibold shadow-xs"
+                >
+                  Create User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

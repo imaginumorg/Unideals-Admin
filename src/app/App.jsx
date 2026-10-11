@@ -8,6 +8,7 @@ const Login = lazy(() => import('../features/auth/pages/Login'))
 const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard'))
 const Users = lazy(() => import('../features/users/pages/Users'))
 const Products = lazy(() => import('../features/products/pages/Products'))
+const Orders = lazy(() => import('../features/orders/pages/Orders'))
 const Campuses = lazy(() => import('../features/campuses/pages/Campuses'))
 const ModerationQueue = lazy(() => import('../features/reports/pages/ModerationQueue'))
 const Reports = lazy(() => import('../features/reports/pages/Reports'))
@@ -30,6 +31,7 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users" element={<Users />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/orders" element={<Orders />} />
           <Route path="/campuses" element={<Campuses />} />
           <Route path="/moderation" element={<ModerationQueue />} />
           <Route path="/moderation-queue" element={<Navigate to="/moderation" replace />} />

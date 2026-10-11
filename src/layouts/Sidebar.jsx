@@ -2,117 +2,217 @@ import { memo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/context/AuthContext'
 
-const navigationItems = [
+const navigationSections = [
   {
-    section: 'Overview',
-    label: 'Dashboard',
-    path: '/dashboard',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      </svg>
-    ),
+    section: 'MAIN',
+    items: [
+      {
+        label: 'Dashboard',
+        path: '/dashboard',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    section: 'Marketplace',
-    label: 'Users',
-    path: '/users',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
+    section: 'MANAGE',
+    items: [
+      {
+        label: 'Users',
+        path: '/users',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Products',
+        path: '/products',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m7.5 4.27 9 5.15" />
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Orders',
+        path: '/orders',
+        badge: '12',
+        badgeColor: 'bg-[#EF4444]',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Categories',
+        path: '/categories',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect width="7" height="7" x="3" y="3" rx="1" />
+            <rect width="7" height="7" x="14" y="3" rx="1" />
+            <rect width="7" height="7" x="14" y="14" rx="1" />
+            <rect width="7" height="7" x="3" y="14" rx="1" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Campuses',
+        path: '/campuses',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 21h18" />
+            <path d="M5 21V7l7-4 7 4v14" />
+            <path d="M9 21v-6h6v6" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Vendors / Sellers',
+        path: '/vendors',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+            <path d="M2 7h20" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Coupons & Offers',
+        path: '/coupons',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l5.58-5.58c.94-.94.94-2.48 0-3.42L11 5Z" />
+            <circle cx="6" cy="9" r="1.5" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    section: 'Marketplace',
-    label: 'Products',
-    path: '/products',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 7h18" />
-        <path d="M6 3h12l1 4H5l1-4Z" />
-        <rect x="4" y="7" width="16" height="14" rx="2" />
-      </svg>
-    ),
+    section: 'CONTENT',
+    items: [
+      {
+        label: 'Banners',
+        path: '/banners',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M3 9h18" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Push Notifications',
+        path: '/push-notifications',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    section: 'Marketplace',
-    label: 'Campuses',
-    path: '/campuses',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 21h18" />
-        <path d="M5 21V7l7-4 7 4v14" />
-        <path d="M9 21v-6h6v6" />
-        <path d="M9 9h.01" />
-        <path d="M12 9h.01" />
-        <path d="M15 9h.01" />
-      </svg>
-    ),
+    section: 'MODERATION',
+    items: [
+      {
+        label: 'Reports',
+        path: '/moderation',
+        badge: '3',
+        badgeColor: 'bg-[#EF4444]',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Moderation Queue',
+        path: '/moderation-queue',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m9 11 3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Disputes',
+        path: '/disputes',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    section: 'Moderation',
-    label: 'Moderation Queue',
-    path: '/moderation',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-      </svg>
-    ),
+    section: 'ANALYTICS',
+    items: [
+      {
+        label: 'Analytics',
+        path: '/analytics',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 3v18h18" />
+            <rect x="7" y="11" width="3" height="6" />
+            <rect x="12" y="8" width="3" height="9" />
+            <rect x="17" y="5" width="3" height="12" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    section: 'Insights',
-    label: 'Analytics',
-    path: '/analytics',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 3v18h18" />
-        <rect x="7" y="11" width="3" height="6" />
-        <rect x="12" y="8" width="3" height="9" />
-        <rect x="17" y="5" width="3" height="12" />
-      </svg>
-    ),
-  },
-  {
-    section: 'Insights',
-    label: 'Audit Log',
-    path: '/audit-log',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <path d="M14 2v6h6" />
-        <path d="M16 13H8" />
-        <path d="M16 17H8" />
-        <path d="M10 9H8" />
-      </svg>
-    ),
-  },
-  {
-    section: 'System',
-    label: 'Settings',
-    path: '/settings',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
+    section: 'SETTINGS',
+    items: [
+      {
+        label: 'System Settings',
+        path: '/settings',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Audit Log',
+        path: '/audit-log',
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+            <path d="M16 13H8" />
+            <path d="M16 17H8" />
+            <path d="M10 9H8" />
+          </svg>
+        ),
+      },
+    ],
   },
 ]
-
-const navigationGroups = navigationItems.reduce((groups, item) => {
-  const sectionItems = groups.get(item.section) || []
-  sectionItems.push(item)
-  groups.set(item.section, sectionItems)
-  return groups
-}, new Map())
 
 const Sidebar = ({ open, collapsed, onClose, onToggleCollapse }) => {
   const navigate = useNavigate()
@@ -127,137 +227,139 @@ const Sidebar = ({ open, collapsed, onClose, onToggleCollapse }) => {
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-[#E3E8F2] dark:border-[#333333] bg-white dark:bg-[#1E1E1E] shadow-xl transition-[width,transform] duration-200 lg:static lg:translate-x-0 lg:shadow-none ${
-          collapsed ? 'lg:w-[84px]' : 'lg:w-[272px]'
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-white dark:bg-[#0E1526] border-r border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] shadow-2xl transition-[width,transform] duration-200 lg:static lg:translate-x-0 ${
+          collapsed ? 'lg:w-[76px]' : 'w-[250px] lg:w-[250px]'
         } ${
           open ? 'translate-x-0' : '-translate-x-full'
-        } lg:h-screen lg:shrink-0`}
+        } lg:h-screen lg:shrink-0 select-none`}
       >
         {/* Brand header */}
-        <div className={`border-b border-[#EEF1F5] dark:border-[#2D333B] py-4 ${collapsed ? 'px-2 flex flex-col items-center' : 'px-4'}`}>
+        <div className={`border-b border-[#F1F5F9] dark:border-[#1E293B] ${collapsed ? 'flex flex-col items-center gap-2.5 py-4 px-2' : 'flex items-center justify-between py-4 px-4'}`}>
           {!collapsed ? (
-            <div className="flex items-center justify-between">
+            <>
               <div className="flex items-center gap-3 min-w-0">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1F293D] ring-1 ring-[#DDE3FF] dark:ring-[#2D333B]">
-                  <img src="/unideals-logo.svg" alt="UniDeals" className="h-7 w-7 object-contain" />
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1E293B]">
+                  <img src="/unideals-logo.svg" alt="UniDeals" className="h-6 w-6 object-contain" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[18px] font-bold text-[#0B1220] dark:text-white">UniDeals</p>
-                  <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#64748B] dark:text-[#94A3B8]">Admin Portal</p>
+                  <p className="truncate text-[18px] font-bold text-[#0B1220] dark:text-white tracking-tight leading-tight">UniDeals</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#3838EC] dark:text-[#58A6FF]">ADMIN PORTAL</p>
                 </div>
               </div>
 
-              {/* Collapse arrow button next to UniDeals */}
+              {/* Collapse button on Desktop (< Chevron matching Image 2) */}
               <button
                 type="button"
                 onClick={onToggleCollapse}
                 aria-label="Collapse sidebar"
-                title="Collapse sidebar"
-                className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#2A2D2E] hover:text-[#0B1220] dark:hover:text-white transition"
+                className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0B1220] dark:text-[#94A3B8] dark:hover:text-white transition"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
               </button>
-
-              {/* Mobile close button */}
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] dark:border-[#333333] text-[#334155] dark:text-[#CBD5E1] lg:hidden"
-                aria-label="Close menu"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1F293D] ring-1 ring-[#DDE3FF] dark:ring-[#2D333B]">
-                <img src="/unideals-logo.svg" alt="UniDeals" className="h-7 w-7 object-contain" />
+            <>
+              {/* Collapsed top: Logo badge (matching Image 3) */}
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1E293B]">
+                <img src="/unideals-logo.svg" alt="UniDeals" className="h-6 w-6 object-contain" />
               </span>
 
-              {/* Menu icon button in place of folder icon to expand sidebar */}
+              {/* Collapsed bottom: Hamburger expand button directly underneath (matching Image 3) */}
               <button
                 type="button"
                 onClick={onToggleCollapse}
                 aria-label="Expand sidebar"
-                title="Expand sidebar"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E2E8F0] dark:border-[#2D333B] bg-[#F8FAFC] dark:bg-[#161B22] text-[#334155] dark:text-[#CBD5E1] transition hover:bg-[#EEF2FF] dark:hover:bg-[#1F293D] hover:text-primary dark:hover:text-[#58A6FF]"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1E293B] hover:bg-[#E0E7FF] dark:hover:bg-[#2D3B55] text-[#3838EC] dark:text-[#58A6FF] transition cursor-pointer"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="4" y1="7" x2="20" y2="7" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="17" x2="20" y2="17" />
                 </svg>
               </button>
-            </div>
+            </>
           )}
-        </div>
 
-        <nav className={`min-h-0 flex-1 overflow-y-auto py-5 ${collapsed ? 'lg:px-3' : 'px-3'}`}>
-          <div className={collapsed ? 'space-y-4 lg:space-y-2' : 'space-y-6'}>
-            {Array.from(navigationGroups.entries()).map(([section, items]) => (
-              <div key={section}>
-                <p className={`px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#94A3B8] dark:text-[#64748B] ${collapsed ? 'lg:hidden' : ''}`}>{section}</p>
-                <div className="mt-2 space-y-1">
-                  {items.map((item) => (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      title={collapsed ? item.label : undefined}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        `flex min-h-11 items-center gap-3 border-r-4 text-[14px] font-medium transition ${
-                          collapsed ? 'lg:justify-center lg:px-0' : 'px-4'
-                        } py-2.5 ${
-                          isActive
-                            ? 'border-primary bg-[#EEF2FF] text-primary dark:bg-[#1F293D] dark:text-[#58A6FF] shadow-sm'
-                            : 'border-transparent text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#2A2D2E]'
-                        }`
-                      }
-                    >
-                      <span className="text-current">{item.icon}</span>
-                      <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </nav>
-
-        <div className={`mt-auto border-t border-[#EEF1F5] dark:border-[#2D333B] px-3 py-3 ${collapsed ? 'lg:px-3' : ''}`}>
+          {/* Close button on Mobile */}
           <button
             type="button"
-            title={collapsed ? 'Help Center' : undefined}
-            className={`flex min-h-11 w-full items-center gap-3 rounded-xl py-2.5 text-left text-[14px] font-medium text-[#334155] dark:text-[#CBD5E1] transition hover:bg-[#F8FAFC] dark:hover:bg-[#2A2D2E] ${collapsed ? 'lg:justify-center lg:px-0' : 'px-4'}`}
+            onClick={onClose}
+            aria-label="Close menu"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0B1220] dark:text-[#94A3B8] dark:hover:text-white lg:hidden"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v.01" />
-              <path d="M12 8a2 2 0 0 1 2 2c0 1.4-2 2-2 4" />
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
             </svg>
-            <span className={collapsed ? 'lg:hidden' : ''}>Help Center</span>
           </button>
+        </div>
+
+        {/* Navigation list */}
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-3 space-y-4 text-xs font-medium no-scrollbar">
+          {navigationSections.map((group) => (
+            <div key={group.section} className="space-y-1">
+              {!collapsed && (
+                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#94A3B8] dark:text-[#64748B]">
+                  {group.section}
+                </p>
+              )}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  title={collapsed ? item.label : undefined}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `group flex items-center justify-between rounded-xl px-3 py-2.5 transition text-[13px] ${
+                      isActive
+                        ? 'bg-[#2563EB] text-white font-semibold shadow-md shadow-blue-600/30'
+                        : 'text-[#64748B] dark:text-[#94A3B8] hover:bg-[#F8FAFC] dark:hover:bg-[#161F32] hover:text-[#0B1220] dark:hover:text-white'
+                    } ${collapsed ? 'justify-center px-0' : ''}`
+                  }
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="shrink-0">{item.icon}</span>
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </div>
+                  {!collapsed && item.badge && (
+                    <span
+                      className={`ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full text-white ${
+                        item.badgeColor || 'bg-[#2563EB]'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        {/* Bottom user / logout */}
+        <div className="mt-auto border-t border-[#F1F5F9] dark:border-[#1E293B] p-3">
           <button
             type="button"
             onClick={handleLogout}
             title={collapsed ? 'Log Out' : undefined}
-            className={`mt-2 flex min-h-11 w-full items-center gap-3 rounded-xl py-2.5 text-left text-[14px] font-medium text-[#DC2626] transition hover:bg-[#FEF2F2] dark:hover:bg-[#3E1B1B] ${collapsed ? 'lg:justify-center lg:px-0' : 'px-4'}`}
+            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 dark:text-rose-400 transition ${
+              collapsed ? 'justify-center px-0' : ''
+            }`}
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <path d="M16 17l5-5-5-5" />
               <path d="M21 12H9" />
             </svg>
-            <span className={collapsed ? 'lg:hidden' : ''}>Log Out</span>
+            {!collapsed && <span>Log Out</span>}
           </button>
         </div>
       </aside>
-      {open && <button type="button" aria-label="Close menu" onClick={onClose} className="fixed inset-0 z-30 bg-[#0F172A]/40 lg:hidden" />}
+
+      {/* Mobile Backdrop */}
+      {open && <button type="button" aria-label="Close menu" onClick={onClose} className="fixed inset-0 z-30 bg-black/60 lg:hidden backdrop-blur-sm" />}
     </>
   )
 }

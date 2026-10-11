@@ -15,7 +15,7 @@ const AdminLayout = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return (
-    <div className="min-h-screen bg-[#F4F6FA] lg:flex lg:h-screen lg:min-h-0 lg:overflow-hidden">
+    <div className="min-h-screen bg-[#F4F6FA] dark:bg-[#090D16] lg:flex lg:h-screen lg:min-h-0 lg:overflow-hidden font-sans">
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
@@ -28,7 +28,7 @@ const AdminLayout = () => {
           onMenuClick={() => setSidebarOpen(true)}
           onSidebarToggle={() => setSidebarCollapsed((currentValue) => !currentValue)}
         />
-        <main className="mx-auto w-full max-w-[1440px] px-3 py-4 sm:px-4 lg:px-6 lg:py-6">
+        <main className="mx-auto w-full max-w-[1540px] px-3 py-4 sm:px-6 lg:px-8 lg:py-6">
           <Suspense fallback={<Loader />}>
             <Outlet />
           </Suspense>
