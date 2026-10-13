@@ -83,28 +83,6 @@ const navigationSections = [
           </svg>
         ),
       },
-      {
-        label: 'Vendors / Sellers',
-        path: '/vendors',
-        icon: (
-          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-            <path d="M2 7h20" />
-          </svg>
-        ),
-      },
-      {
-        label: 'Coupons & Offers',
-        path: '/coupons',
-        icon: (
-          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l5.58-5.58c.94-.94.94-2.48 0-3.42L11 5Z" />
-            <circle cx="6" cy="9" r="1.5" />
-          </svg>
-        ),
-      },
     ],
   },
   {
