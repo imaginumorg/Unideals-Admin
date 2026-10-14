@@ -10,69 +10,30 @@ export const ordersApi = {
     limit = 10,
   } = {}) =>
     fetcher(async () => {
-      try {
-        const response = await requestBackend('/admin/orders', {
-          query: {
-            search: search.trim(),
-            status: status === 'all' || status === 'Status (All)' ? '' : status,
-            campus: campus === 'all' || campus === 'Campus (All)' ? '' : campus,
-            payment: payment === 'all' || payment === 'Payment (All)' ? '' : payment,
-            page,
-            limit,
-          },
-        })
-        if (response?.data) {
-          return createApiResponse(response.data, response.message, response.pagination)
-        }
-      } catch (err) {
-        // Network or server error
-      }
-
-      return createApiResponse([], 'No orders found', {
-        page: Number(page),
-        limit: Number(limit),
-        total: 0,
-        totalPages: 1,
+      const response = await requestBackend('/admin/orders', {
+        query: {
+          search: search.trim(),
+          status: status === 'all' || status === 'Status (All)' ? '' : status,
+          campus: campus === 'all' || campus === 'Campus (All)' ? '' : campus,
+          payment: payment === 'all' || payment === 'Payment (All)' ? '' : payment,
+          page,
+          limit,
+        },
       })
+      return createApiResponse(response.data, response.message, response.pagination)
     }),
 
   getOrderStats: () =>
     fetcher(async () => {
-      try {
-        const response = await requestBackend('/admin/orders/stats')
-        if (response?.data) {
-          return createApiResponse(response.data, response.message)
-        }
-      } catch (err) {
-        // Network or server error
-      }
-
-      return createApiResponse(
-        {
-          totalOrders: 0,
-          totalGrowth: 0,
-          pendingOrders: 0,
-          processingOrders: 0,
-          scheduledOrders: 0,
-          deliveredOrders: 0,
-          cancelledOrders: 0,
-        },
-        'Order stats unavailable'
-      )
+      const response = await requestBackend('/admin/orders/stats')
+      return createApiResponse(response.data, response.message)
     }),
 
   getOrderDetails: (orderId) =>
     fetcher(async () => {
-      if (!orderId) return createApiResponse(null, 'Order ID is required')
-      try {
-        const response = await requestBackend(`/admin/orders/${orderId}`)
-        if (response?.data) {
-          return createApiResponse(response.data, response.message)
-        }
-      } catch (err) {
-        // Network or server error
-      }
-      return createApiResponse(null, 'Order not found')
+      if (!orderId) throw new Error('Order ID is required')
+      const response = await requestBackend(`/admin/orders/${orderId}`)
+      return createApiResponse(response.data, response.message)
     }),
 
   updateOrderStatus: (orderId, status, reason = '') =>

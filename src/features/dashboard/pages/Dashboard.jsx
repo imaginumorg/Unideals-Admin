@@ -40,81 +40,6 @@ const getDynamicDateRanges = () => {
   ]
 }
 
-/**
- * Smooth SVG Sparkline Graph with gradient area fill (or flat baseline on zero)
- */
-const Sparkline = ({ color = '#3B82F6', id = 'sparkline-1', pathType = 1, isZero = false }) => {
-  // When metric is 0, render a clean baseline instead of a misleading growth curve
-  if (isZero) {
-    return (
-      <div className="h-[46px] w-[115px] shrink-0 select-none">
-        <svg viewBox="0 0 115 48" className="h-full w-full overflow-visible">
-          <line
-            x1="0"
-            y1="42"
-            x2="115"
-            y2="42"
-            stroke={color}
-            strokeWidth="2"
-            strokeDasharray="4 3"
-            strokeOpacity="0.4"
-          />
-          <circle cx="115" cy="42" r="3" fill={color} fillOpacity="0.5" />
-        </svg>
-      </div>
-    )
-  }
-
-  // Variations of smooth bezier curves
-  const curves = [
-    {
-      fill: 'M 0 36 Q 20 42, 34 26 T 64 22 T 90 14 T 115 4 L 115 48 L 0 48 Z',
-      stroke: 'M 0 36 Q 20 42, 34 26 T 64 22 T 90 14 T 115 4',
-      endY: 4,
-    },
-    {
-      fill: 'M 0 40 Q 18 44, 32 30 T 60 28 T 85 16 T 115 6 L 115 48 L 0 48 Z',
-      stroke: 'M 0 40 Q 18 44, 32 30 T 60 28 T 85 16 T 115 6',
-      endY: 6,
-    },
-    {
-      fill: 'M 0 38 Q 22 40, 36 28 T 62 18 T 88 12 T 115 4 L 115 48 L 0 48 Z',
-      stroke: 'M 0 38 Q 22 40, 36 28 T 62 18 T 88 12 T 115 4',
-      endY: 4,
-    },
-    {
-      fill: 'M 0 42 Q 16 38, 30 26 T 60 24 T 86 14 T 115 5 L 115 48 L 0 48 Z',
-      stroke: 'M 0 42 Q 16 38, 30 26 T 60 24 T 86 14 T 115 5',
-      endY: 5,
-    },
-  ]
-
-  const curve = curves[(pathType - 1) % curves.length]
-
-  return (
-    <div className="h-[46px] w-[115px] shrink-0 select-none">
-      <svg viewBox="0 0 115 48" className="h-full w-full overflow-visible">
-        <defs>
-          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-        <path d={curve.fill} fill={`url(#grad-${id})`} />
-        <path
-          d={curve.stroke}
-          fill="none"
-          stroke={color}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="115" cy={curve.endY} r="3.5" fill={color} />
-      </svg>
-    </div>
-  )
-}
-
 const actionToneMap = {
   'user.suspend': 'danger',
   'product.block': 'danger',
@@ -182,11 +107,8 @@ const Dashboard = () => {
       id: 'users',
       label: 'Total Users',
       value: usersCount.toLocaleString(),
-      isZero: usersCount === 0,
       change: stats.trends?.users || null,
       changeLabel: 'vs last month',
-      color: '#3B82F6',
-      pathType: 1,
       iconBg: 'bg-[#EEF2FF] dark:bg-[#1F293D]',
       iconColor: 'text-[#3838EC] dark:text-[#58A6FF]',
       icon: (
@@ -202,11 +124,8 @@ const Dashboard = () => {
       id: 'products',
       label: 'Total Products',
       value: productsCount.toLocaleString(),
-      isZero: productsCount === 0,
       change: stats.trends?.products || null,
       changeLabel: 'vs last month',
-      color: '#10B981',
-      pathType: 2,
       iconBg: 'bg-[#ECFDF3] dark:bg-[#064E3B]/30',
       iconColor: 'text-[#16A34A] dark:text-[#34D399]',
       icon: (
@@ -221,11 +140,8 @@ const Dashboard = () => {
       id: 'orders',
       label: 'Total Orders',
       value: ordersCount.toLocaleString(),
-      isZero: ordersCount === 0,
       change: stats.trends?.orders || null,
       changeLabel: 'vs last month',
-      color: '#8B5CF6',
-      pathType: 3,
       iconBg: 'bg-[#F3E8FF] dark:bg-[#581C87]/30',
       iconColor: 'text-[#9333EA] dark:text-[#C084FC]',
       icon: (
@@ -240,11 +156,8 @@ const Dashboard = () => {
       id: 'revenue',
       label: 'Total Revenue',
       value: `₹${revenueCount.toLocaleString('en-IN')}`,
-      isZero: revenueCount === 0,
       change: stats.trends?.revenue || null,
       changeLabel: 'vs last month',
-      color: '#F97316',
-      pathType: 4,
       iconBg: 'bg-[#FFF7ED] dark:bg-[#7C2D12]/30',
       iconColor: 'text-[#EA580C] dark:text-[#FB923C]',
       icon: (
@@ -376,10 +289,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Sparkline curve graph */}
-            <div className="self-end pb-1">
-              <Sparkline color={card.color} id={card.id} pathType={card.pathType} isZero={card.isZero} />
-            </div>
           </article>
         ))}
       </div>

@@ -13,6 +13,7 @@ const statusStyles = {
   listed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
   blocked: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400',
   unlisted: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  sold: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 }
 
 const formatDate = (d) => {
@@ -30,31 +31,38 @@ const formatDate = (d) => {
 const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('Details')
+  const [loadError, setLoadError] = useState('')
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const { showToast } = useToast()
   const { canWrite } = useAuth()
 
   useEffect(() => {
-    if (!productId || String(productId).startsWith('PRD') || productId.length < 12) {
-      setProduct(null)
-      setLoading(false)
-      return
-    }
+    if (!productId) return
 
     let active = true
-    setLoading(true)
-
-    productsApi.getProductDetails(productId).then((res) => {
+    const loadProduct = async () => {
+      await Promise.resolve()
       if (!active) return
-      if (res?.success && res.data) {
-        setProduct(res.data)
-        setActiveImageIndex(0)
-      } else {
-        setProduct(null)
+      setLoading(true)
+      setLoadError('')
+      setProduct(null)
+
+      try {
+        const res = await productsApi.getProductDetails(productId)
+        if (!active) return
+        if (res?.success && res.data) {
+          setProduct(res.data)
+          setActiveImageIndex(0)
+        } else {
+          setLoadError(res?.message || 'Unable to load product details.')
+        }
+      } catch (error) {
+        if (active) setLoadError(error.message || 'Unable to load product details.')
+      } finally {
+        if (active) setLoading(false)
       }
-      setLoading(false)
-    })
+    }
+    loadProduct()
 
     return () => {
       active = false
@@ -68,14 +76,11 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
     const res = await onStatusChange(product.id || product._id, newStatus)
     if (res?.success) {
       setProduct((prev) => ({ ...prev, status: newStatus }))
+    } else {
+      showToast({ type: 'error', message: res?.message || 'Unable to update product status.' })
     }
   }
 
-  const handleContactSeller = () => {
-    showToast({ type: 'info', message: `Message composer opened for ${product?.seller?.name || 'Seller'}` })
-  }
-
-  const tabs = ['Details', 'Images', 'Reports (0)', 'History']
   const rawImages = product?.images || []
   const images = rawImages
     .map((img) => (typeof img === 'string' ? img : img?.url))
@@ -190,10 +195,6 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                 />
                 <div>
                   <p className="text-xs font-bold text-[#0B1220] dark:text-white">{product.seller?.name || 'Seller'}</p>
-                  <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] flex items-center gap-1">
-                    <span className="text-amber-500 font-bold">★ {product.seller?.rating || '4.8'}</span>
-                    <span>({product.seller?.reviewsCount || 0} reviews)</span>
-                  </p>
                   <p className="text-[10px] text-[#94A3B8]">
                     {typeof product.seller?.campus === 'string'
                       ? product.seller.campus
@@ -201,37 +202,10 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => showToast({ type: 'info', message: `Navigating to ${product.seller?.name || 'Seller'}'s profile` })}
-                className="rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1A2234] px-3 py-1.5 text-xs font-semibold text-[#0B1220] dark:text-white hover:bg-[#F8FAFC] transition shadow-2xs"
-              >
-                View Profile
-              </button>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-3 border-b border-[#E2E8F0] dark:border-[#1E293B] text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">
-              {tabs.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setActiveTab(t)}
-                  className={`pb-2.5 transition relative ${
-                    activeTab === t ? 'text-[#2563EB] dark:text-blue-400 font-bold' : 'hover:text-[#0B1220] dark:hover:text-white'
-                  }`}
-                >
-                  {t}
-                  {activeTab === t && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB] dark:bg-blue-400 rounded-full" />
-                  )}
-                </button>
-              ))}
             </div>
 
             {/* Details Content */}
-            {activeTab === 'Details' && (
-              <div className="space-y-4 text-xs">
+            <div className="space-y-4 text-xs">
                 {/* 2x2 Specs Grid */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
@@ -246,7 +220,7 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                   </div>
                   <div>
                     <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Condition</span>
-                    <p className="font-bold text-[#0B1220] dark:text-white mt-0.5">{product.condition || 'Good'}</p>
+                    <p className="font-bold text-[#0B1220] dark:text-white mt-0.5">{product.condition || '—'}</p>
                   </div>
                   <div>
                     <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Listed On</span>
@@ -281,21 +255,21 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                 {/* Action Buttons Section from Image 3 */}
                 <div className="space-y-2 pt-2">
                   {/* Row 1: Approve and Reject */}
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => handleAction('Approved')}
+                      onClick={() => handleAction('listed')}
                       disabled={!canWrite}
                       className="flex items-center justify-center gap-1.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white py-2.5 px-4 font-semibold text-xs shadow-sm shadow-emerald-500/20 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      <span>Approve</span>
+                      <span>List Product</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAction('Rejected')}
+                      onClick={() => handleAction('unlisted')}
                       disabled={!canWrite}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -303,15 +277,15 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
-                      <span>Reject</span>
+                      <span>Unlist Product</span>
                     </button>
                   </div>
 
                   {/* Row 2: Block Product and Contact Seller */}
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => handleAction('Blocked')}
+                      onClick={() => handleAction('blocked')}
                       disabled={!canWrite}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 py-2.5 px-4 font-semibold text-xs transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -321,31 +295,14 @@ const ProductDetailsDrawer = ({ productId, onClose, onStatusChange }) => {
                       </svg>
                       <span>Block Product</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleContactSeller}
-                      className="flex items-center justify-center gap-1.5 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#161F32] text-[#334155] dark:text-[#CBD5E1] py-2.5 px-4 font-semibold text-xs hover:bg-[#F8FAFC] transition"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect width="20" height="16" x="2" y="4" rx="2" />
-                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                      </svg>
-                      <span>Contact Seller</span>
-                    </button>
                   </div>
                 </div>
-              </div>
-            )}
+            </div>
 
-            {/* Other tabs */}
-            {activeTab !== 'Details' && (
-              <div className="py-8 text-center text-xs text-[#94A3B8]">
-                <p>Content for <strong className="text-[#0B1220] dark:text-white">{activeTab}</strong> tab.</p>
-                <p className="mt-1">All audit traces are verified.</p>
-              </div>
-            )}
           </div>
-        ) : null}
+        ) : (
+          <p role="alert" className="p-5 text-sm text-rose-600">{loadError || 'Unable to load product details.'}</p>
+        )}
       </aside>
     </>
   )

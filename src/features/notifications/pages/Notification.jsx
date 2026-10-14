@@ -1,45 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { notificationsApi } from '../api/notificationsApi'
 import { campusesApi } from '../../campuses/api/campusesApi'
 import { useAuth } from '../../auth/context/AuthContext'
-import Loader from '../../../shared/components/Loader'
-
-// Sparkline SVG helpers for metric cards
-const PurpleSparkline = () => (
-  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
-    <path
-      d="M0 25 C20 22, 35 28, 50 18 C65 8, 80 15, 100 5"
-      stroke="#6366F1"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-)
-
-const GreenSparkline = () => (
-  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
-    <path
-      d="M0 26 C25 24, 45 20, 60 12 C75 5, 85 10, 100 3"
-      stroke="#10B981"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-)
-
-const OrangeSparkline = () => (
-  <svg className="h-8 w-24 overflow-visible" viewBox="0 0 100 30" fill="none">
-    <path
-      d="M0 28 C20 28, 40 22, 60 20 C75 18, 85 12, 100 8"
-      stroke="#F59E0B"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-)
 
 const TEMPLATES = [
   {
@@ -113,15 +75,8 @@ const Notification = () => {
 
   // Data states
   const [campuses, setCampuses] = useState([])
-  const [stats, setStats] = useState({
-    totalSent: 2548,
-    delivered: 2421,
-    deliveredPercent: 95,
-    clicked: 842,
-    clickedPercent: 33,
-    activeUsers: 1204,
-  })
-  const [recipientCount, setRecipientCount] = useState(8452)
+  const [stats, setStats] = useState({})
+  const [recipientCount, setRecipientCount] = useState(null)
   const [historyItems, setHistoryItems] = useState([])
   const [scheduledItems, setScheduledItems] = useState([])
   const [loadingData, setLoadingData] = useState(false)
@@ -143,7 +98,7 @@ const Notification = () => {
         ])
 
         if (mounted) {
-          if (statsRes?.data) setStats(statsRes.data)
+          if (statsRes?.success) setStats(statsRes.data)
           if (campusesRes?.data) {
             setCampuses(campusesRes.data)
             if (campusesRes.data.length > 0) {
@@ -155,9 +110,18 @@ const Notification = () => {
           }
           if (schedRes?.data) setScheduledItems(schedRes.data)
           if (histRes?.data?.items) setHistoryItems(histRes.data.items)
+          const failedRequest = [statsRes, campusesRes, schedRes, histRes].find((result) => !result?.success)
+          if (failedRequest) {
+            setStatusFeedback({
+              type: 'error',
+              message: failedRequest.message || 'Some notification data could not be loaded.',
+            })
+          }
         }
       } catch (err) {
-        console.error('Failed to load notification center data:', err)
+        if (mounted) {
+          setStatusFeedback({ type: 'error', message: err.message || 'Failed to load notification data.' })
+        }
       } finally {
         if (mounted) setLoadingData(false)
       }
@@ -178,11 +142,13 @@ const Notification = () => {
           targetAudience,
           targetCampus: targetAudience === 'campus' ? selectedCampus : null,
         })
-        if (active && res?.data?.count !== undefined) {
+        if (active && res?.success && res.data?.count !== undefined) {
           setRecipientCount(res.data.count)
+        } else if (active && !res?.success) {
+          setStatusFeedback({ type: 'error', message: res?.message || 'Unable to estimate recipients.' })
         }
-      } catch {
-        // keep current count on network jitter
+      } catch (err) {
+        if (active) setStatusFeedback({ type: 'error', message: err.message || 'Unable to estimate recipients.' })
       }
     }
 
@@ -255,9 +221,16 @@ const Notification = () => {
         notificationsApi.getScheduled(),
         notificationsApi.getHistory(1, 20),
       ])
-      if (statsRes?.data) setStats(statsRes.data)
+      if (statsRes?.success) setStats(statsRes.data)
       if (schedRes?.data) setScheduledItems(schedRes.data)
       if (histRes?.data?.items) setHistoryItems(histRes.data.items)
+      const failedRequest = [statsRes, schedRes, histRes].find((result) => !result?.success)
+      if (failedRequest) {
+        setStatusFeedback({
+          type: 'error',
+          message: `Notification sent, but ${failedRequest.message || 'the latest data could not be refreshed.'}`,
+        })
+      }
     } catch (err) {
       setStatusFeedback({
         type: 'error',
@@ -391,13 +364,9 @@ const Notification = () => {
               <span className="text-slate-400">›</span>
             </div>
             <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {stats.totalSent.toLocaleString()}
-            </div>
-            <div className="flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <span>↗ 12%</span>
+              {stats.totalSent == null ? '—' : Number(stats.totalSent).toLocaleString()}
             </div>
           </div>
-          <PurpleSparkline />
         </div>
 
         {/* Card 2: Delivered */}
@@ -413,13 +382,12 @@ const Notification = () => {
               <span>Delivered</span>
             </div>
             <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {stats.delivered.toLocaleString()}
+              {stats.delivered == null ? '—' : Number(stats.delivered).toLocaleString()}
             </div>
             <div className="flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <span>{stats.deliveredPercent}%</span>
+              <span>{stats.deliveredPercent == null ? '—' : `${stats.deliveredPercent}%`}</span>
             </div>
           </div>
-          <GreenSparkline />
         </div>
 
         {/* Card 3: Clicked */}
@@ -434,13 +402,12 @@ const Notification = () => {
               <span>Clicked</span>
             </div>
             <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {stats.clicked.toLocaleString()}
+              {stats.clicked == null ? '—' : Number(stats.clicked).toLocaleString()}
             </div>
             <div className="flex items-center text-xs font-bold text-amber-600 dark:text-amber-400">
-              <span>{stats.clickedPercent}%</span>
+              <span>{stats.clickedPercent == null ? '—' : `${stats.clickedPercent}%`}</span>
             </div>
           </div>
-          <OrangeSparkline />
         </div>
 
         {/* Card 4: Active Users */}
@@ -456,45 +423,35 @@ const Notification = () => {
               <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-950"></span>
             </div>
             <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {stats.activeUsers.toLocaleString()}
+              {stats.activeUsers == null ? '—' : Number(stats.activeUsers).toLocaleString()}
             </div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">online now</div>
-          </div>
-
-          <div className="flex -space-x-2 overflow-hidden">
-            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-slate-200 text-center text-xs font-bold leading-7 text-slate-600 dark:border-slate-900 dark:bg-slate-700 dark:text-slate-300">
-              AJ
-            </span>
-            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-indigo-100 text-center text-xs font-bold leading-7 text-indigo-700 dark:border-slate-900 dark:bg-indigo-950 dark:text-indigo-300">
-              RS
-            </span>
-            <span className="inline-block h-8 w-8 rounded-full border-2 border-white bg-amber-100 text-center text-xs font-bold leading-7 text-amber-700 dark:border-slate-900 dark:bg-amber-950 dark:text-amber-300">
-              PK
-            </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-bold text-slate-600 dark:border-slate-900 dark:bg-slate-800 dark:text-slate-300">
-              +1.2K
-            </span>
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">tracked by backend</div>
           </div>
         </div>
       </div>
 
       {/* ===================== STATUS FEEDBACK ALERT ===================== */}
-      {statusFeedback && (
+      {(loadingData || statusFeedback) && (
         <div
+          role={statusFeedback?.type === 'error' ? 'alert' : 'status'}
           className={`flex items-center justify-between rounded-xl p-4 text-sm font-semibold transition ${
-            statusFeedback.type === 'success'
+            statusFeedback?.type === 'success'
               ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300'
-              : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
+              : statusFeedback?.type === 'error'
+                ? 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
+                : 'border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
           }`}
         >
-          <span>{statusFeedback.message}</span>
-          <button
-            type="button"
-            onClick={() => setStatusFeedback(null)}
-            className="text-xs font-bold uppercase opacity-75 hover:opacity-100"
-          >
-            ✕ Dismiss
-          </button>
+          <span>{statusFeedback?.message || 'Loading notification data...'}</span>
+          {statusFeedback && (
+            <button
+              type="button"
+              onClick={() => setStatusFeedback(null)}
+              className="text-xs font-bold uppercase opacity-75 hover:opacity-100"
+            >
+              Dismiss
+            </button>
+          )}
         </div>
       )}
 
@@ -892,7 +849,7 @@ const Notification = () => {
                     <span>📊</span> Total Recipients
                   </span>
                   <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
-                    ~ {recipientCount.toLocaleString()} users
+                    ~ {recipientCount == null ? 'Unavailable' : recipientCount.toLocaleString()} users
                   </span>
                 </div>
 

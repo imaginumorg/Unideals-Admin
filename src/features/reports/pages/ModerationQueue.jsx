@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useMemo } from 'react'
+import { memo, useCallback, useState } from 'react'
 import EmptyState from '../../../shared/components/EmptyState'
 import Loader from '../../../shared/components/Loader'
 import Modal from '../../../shared/components/Modal'

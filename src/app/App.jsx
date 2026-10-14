@@ -11,11 +11,8 @@ const Products = lazy(() => import('../features/products/pages/Products'))
 const Orders = lazy(() => import('../features/orders/pages/Orders'))
 const Campuses = lazy(() => import('../features/campuses/pages/Campuses'))
 const ModerationQueue = lazy(() => import('../features/reports/pages/ModerationQueue'))
-const Reports = lazy(() => import('../features/reports/pages/Reports'))
-const Analytics = lazy(() => import('../features/analytics/pages/Analytics'))
 const AuditLog = lazy(() => import('../features/analytics/pages/AuditLog'))
 const Notification = lazy(() => import('../features/notifications/pages/Notification'))
-const Settings = lazy(() => import('../features/settings/pages/Settings'))
 
 const App = () => {
   const { isAuthenticated, sessionLoading } = useAuth()
@@ -36,11 +33,11 @@ const App = () => {
           <Route path="/moderation" element={<ModerationQueue />} />
           <Route path="/moderation-queue" element={<Navigate to="/moderation" replace />} />
           <Route path="/reports" element={<Navigate to="/moderation" replace />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={<Navigate to="/dashboard" replace />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/push-notifications" element={<Notification />} />
           <Route path="/notification" element={<Notification />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

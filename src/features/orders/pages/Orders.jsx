@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { ordersApi } from '../api/ordersApi'
 import { campusesApi } from '../../campuses/api/campusesApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import Avatar from '../../../shared/components/Avatar'
 import OrderDetailsDrawer from '../components/OrderDetailsDrawer'
 import { useAuth } from '../../auth/context/AuthContext'
+import { useFetch } from '../../../shared/hooks/useFetch'
 
 const statusStyles = {
   delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -93,17 +94,6 @@ const Sparkline = ({ color = '#3B82F6', id = 'spark', isZero = false }) => {
 }
 
 const Orders = () => {
-  const [orders, setOrders] = useState([])
-  const [stats, setStats] = useState({
-    totalOrders: 0,
-    totalGrowth: 0,
-    pendingOrders: 0,
-    processingOrders: 0,
-    scheduledOrders: 0,
-    deliveredOrders: 0,
-    cancelledOrders: 0,
-  })
-  const [loading, setLoading] = useState(true)
   const [selectedStatusTab, setSelectedStatusTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCampus, setSelectedCampus] = useState('Campus (All)')
@@ -111,8 +101,6 @@ const Orders = () => {
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState('Payment (All)')
   const [campuses, setCampuses] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
-  const [selectedOrderIds, setSelectedOrderIds] = useState(new Set())
   const [drawerOrderId, setDrawerOrderId] = useState(null)
   const { showToast } = useToast()
   const { canWrite } = useAuth()
@@ -126,70 +114,61 @@ const Orders = () => {
     })
   }, [])
 
-  // Load summary stats
-  const loadStats = useCallback(async () => {
-    try {
-      const res = await ordersApi.getOrderStats()
-      if (res?.success && res.data) {
-        setStats(res.data)
-      }
-    } catch {
-      // Fallback
-    }
-  }, [])
-
-  // Load paginated orders
-  const loadOrders = useCallback(async () => {
-    setLoading(true)
-    const effectiveStatus =
-      selectedStatusTab !== 'all'
-        ? selectedStatusTab
-        : selectedStatusFilter !== 'Status (All)'
+  const effectiveStatus =
+    selectedStatusTab !== 'all'
+      ? selectedStatusTab
+      : selectedStatusFilter !== 'Status (All)'
         ? selectedStatusFilter.toLowerCase()
         : 'all'
 
-    try {
-      const res = await ordersApi.getOrders({
-        search: searchQuery,
-        status: effectiveStatus,
-        campus: selectedCampus === 'Campus (All)' ? 'all' : selectedCampus,
-        payment: selectedPaymentFilter === 'Payment (All)' ? 'all' : selectedPaymentFilter.toLowerCase(),
-        page: currentPage,
-        limit: 10,
-      })
-
-      if (res?.success) {
-        setOrders(res.data || [])
-        if (res.pagination) {
-          setPagination({
-            total: res.pagination.total || 0,
-            totalPages: res.pagination.totalPages || 1,
-          })
-        }
-      } else {
-        setOrders([])
-      }
-    } catch {
-      setOrders([])
-    } finally {
-      setLoading(false)
-    }
+  const loadOrders = useCallback(() => {
+    return ordersApi.getOrders({
+      search: searchQuery,
+      status: effectiveStatus,
+      campus: selectedCampus === 'Campus (All)' ? 'all' : selectedCampus,
+      payment: selectedPaymentFilter === 'Payment (All)' ? 'all' : selectedPaymentFilter.toLowerCase(),
+      page: currentPage,
+      limit: 10,
+    })
   }, [
     searchQuery,
-    selectedStatusTab,
-    selectedStatusFilter,
+    effectiveStatus,
     selectedCampus,
     selectedPaymentFilter,
     currentPage,
   ])
+  const {
+    data: orders = [],
+    pagination: orderPagination,
+    loading,
+    error: ordersError,
+    refetch: refreshOrders,
+  } = useFetch(loadOrders)
 
-  useEffect(() => {
-    loadStats()
-  }, [loadStats])
-
-  useEffect(() => {
-    loadOrders()
-  }, [loadOrders])
+  const loadStats = useCallback(() => ordersApi.getOrderStats(), [])
+  const {
+    data: statsData,
+    error: statsError,
+    refetch: refreshStats,
+  } = useFetch(loadStats)
+  const stats = statsData || {
+    totalOrders: 0,
+    totalGrowth: 0,
+    pendingOrders: 0,
+    processingOrders: 0,
+    scheduledOrders: 0,
+    deliveredOrders: 0,
+    cancelledOrders: 0,
+  }
+  const pagination = {
+    total: orderPagination?.total ?? 0,
+    totalPages: Math.max(1, orderPagination?.totalPages ?? 1),
+  }
+  const pageWindowStart = Math.max(1, Math.min(currentPage - 2, pagination.totalPages - 4))
+  const visiblePages = Array.from(
+    { length: Math.min(pagination.totalPages, 5) },
+    (_, index) => pageWindowStart + index,
+  )
 
   const handleResetFilters = () => {
     setSearchQuery('')
@@ -200,31 +179,13 @@ const Orders = () => {
     setCurrentPage(1)
   }
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedOrderIds(new Set(orders.map((o) => o.id)))
-    } else {
-      setSelectedOrderIds(new Set())
-    }
-  }
-
-  const handleSelectRow = (id) => {
-    const updated = new Set(selectedOrderIds)
-    if (updated.has(id)) {
-      updated.delete(id)
-    } else {
-      updated.add(id)
-    }
-    setSelectedOrderIds(updated)
-  }
-
   const handleStatusChangeFromDrawer = async (orderId, newStatus) => {
     if (!canWrite) return { success: false, message: 'Support users can inspect orders but cannot update order stages.' }
     try {
       const res = await ordersApi.updateOrderStatus(orderId, newStatus)
       if (res?.success) {
-        loadOrders()
-        loadStats()
+        refreshOrders()
+        refreshStats()
       }
       return res
     } catch (err) {
@@ -300,6 +261,11 @@ const Orders = () => {
           </button>
         </div>
       </div>
+      {(ordersError || statsError) && (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {ordersError || statsError}
+        </p>
+      )}
 
       {/* Top 5 Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -533,14 +499,6 @@ const Orders = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-[#E2E8F0] dark:border-[#2D3748] bg-[#F8FAFC]/70 dark:bg-[#1E293B]/40 text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
-                <th className="py-3.5 pl-6 pr-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={orders.length > 0 && selectedOrderIds.size === orders.length}
-                    onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-[#CBD5E1] text-primary focus:ring-primary"
-                  />
-                </th>
                 <th className="py-3.5 px-3">Order ID</th>
                 <th className="py-3.5 px-3">User</th>
                 <th className="py-3.5 px-3">Products</th>
@@ -555,14 +513,14 @@ const Orders = () => {
             <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#2D3748] text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="py-12 text-center">
+                  <td colSpan="9" className="py-12 text-center">
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                     <p className="mt-2 text-xs text-[#64748B] dark:text-[#94A3B8]">Loading orders...</p>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="py-12 text-center">
+                  <td colSpan="9" className="py-12 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-[#64748B]">
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="8" cy="21" r="1" />
@@ -578,7 +536,6 @@ const Orders = () => {
                 </tr>
               ) : (
                 orders.map((order) => {
-                  const isChecked = selectedOrderIds.has(order.id)
                   const buyerAvatar = order.buyer?.avatar
                   const buyerName = order.buyer?.name || 'Student'
                   const buyerId = order.buyer?.id ? `#${order.buyer.id.slice(-6)}` : '#USR001'
@@ -594,16 +551,6 @@ const Orders = () => {
                       key={order.id}
                       className="hover:bg-[#F8FAFC]/80 dark:hover:bg-[#1E293B]/40 transition"
                     >
-                      {/* Checkbox */}
-                      <td className="py-3.5 pl-6 pr-3">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleSelectRow(order.id)}
-                          className="h-4 w-4 rounded border-[#CBD5E1] text-primary focus:ring-primary"
-                        />
-                      </td>
-
                       {/* Order ID */}
                       <td className="py-3.5 px-3 font-semibold text-[#0B1220] dark:text-white">
                         <button
@@ -739,7 +686,7 @@ const Orders = () => {
             >
               ‹
             </button>
-            {Array.from({ length: Math.min(pagination.totalPages || 1, 5) }, (_, i) => i + 1).map((p) => (
+            {visiblePages.map((p) => (
               <button
                 key={p}
                 type="button"

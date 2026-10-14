@@ -26,15 +26,6 @@ const featuresList = [
     ),
   },
   {
-    label: 'View analytics & insights',
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-        <polyline points="16 7 22 7 22 13" />
-      </svg>
-    ),
-  },
-  {
     label: 'Manage campus marketplaces',
     icon: (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -81,11 +72,11 @@ const Login = () => {
   }
 
   return (
-    <main className="min-h-screen bg-[#EEF2F8] dark:bg-[#070B14] p-3 sm:p-6 lg:p-8 flex items-center justify-center font-sans">
-      <div className="w-full max-w-[1240px] overflow-hidden rounded-[28px] sm:rounded-[36px] bg-[#0C1220] border border-[#CBD5E1]/40 dark:border-[#1E293B] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr]">
+    <main className="flex min-h-dvh items-center justify-center bg-[#EEF2F8] p-3 font-sans dark:bg-[#070B14] sm:p-5 lg:p-6">
+      <div className="grid w-full max-w-[1160px] grid-cols-1 overflow-hidden rounded-[24px] border border-[#CBD5E1]/40 bg-[#0C1220] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] dark:border-[#1E293B] sm:rounded-[30px] lg:grid-cols-2 lg:rounded-[32px]">
         
         {/* Left Side: Dark Hero Presentation */}
-        <section className="relative flex flex-col justify-between p-6 sm:p-10 lg:p-12 bg-gradient-to-br from-[#0B1220] via-[#0E1729] to-[#0A101D] text-white overflow-hidden">
+        <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#0B1220] via-[#0E1729] to-[#0A101D] p-5 text-white sm:p-7 lg:p-8 xl:p-10">
           {/* Ambient Glows */}
           <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-[#2563EB]/15 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#3B82F6]/10 blur-3xl" />
@@ -102,24 +93,24 @@ const Login = () => {
           </div>
 
           {/* Middle Content */}
-          <div className="relative z-10 my-8 sm:my-10 space-y-6">
-            <div className="space-y-3">
-              <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-extrabold tracking-tight leading-[1.15]">
+          <div className="relative z-10 my-5 space-y-4 sm:my-6 sm:space-y-5 lg:my-4">
+            <div className="space-y-2.5">
+              <h1 className="text-[1.75rem] font-extrabold leading-[1.12] tracking-tight sm:text-4xl lg:text-[40px]">
                 Manage <br />
                 Your Marketplace <br />
                 <span className="text-[#3B82F6]">With Ease</span>
               </h1>
-              <p className="text-[#94A3B8] text-[15px] sm:text-[16px] max-w-md font-normal leading-relaxed">
+              <p className="max-w-md text-sm font-normal leading-relaxed text-[#94A3B8] sm:text-[15px]">
                 Review deals, reports, and seller activity from one focused workspace.
               </p>
             </div>
 
             {/* Feature Pills */}
-            <div className="space-y-2.5 max-w-sm pt-2">
+            <div className="hidden max-w-sm space-y-2 pt-1 sm:block">
               {featuresList.map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-center gap-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] px-4 py-3 text-[14px] text-white/90 backdrop-blur-sm transition"
+                  className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-white/90 backdrop-blur-sm transition hover:bg-white/[0.07]"
                 >
                   <span className="text-[#94A3B8] shrink-0">{item.icon}</span>
                   <span className="font-medium">{item.label}</span>
@@ -127,47 +118,27 @@ const Login = () => {
               ))}
             </div>
 
-            {/* Hero Image Showcase */}
-            <div className="relative pt-4 max-w-md">
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
-                <img
-                  src="/login-workspace.jpg"
-                  alt="UniDeals Admin Workspace"
-                  className="w-full h-44 sm:h-52 object-cover object-center transform transition duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/80 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute bottom-3 left-3 bg-[#0B1220]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg">
-                  <p className="text-[11px] font-semibold text-white/90 tracking-wide">Better Campus Commerce</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Bottom Indicators */}
-          <div className="relative z-10 flex items-center justify-between pt-4 border-t border-white/[0.07]">
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-6 rounded-full bg-[#3B82F6]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
-              <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
-            </div>
-            <p className="text-[12px] text-[#94A3B8]">Powering student commerce across campus.</p>
+          <div className="relative z-10 border-t border-white/[0.07] pt-3">
+            <p className="text-[11px] text-[#94A3B8]">Powering student commerce across campus.</p>
           </div>
         </section>
 
         {/* Right Side: Clean Login Card */}
-        <section className="relative flex flex-col justify-between bg-white dark:bg-[#111827] p-8 sm:p-12 lg:p-14">
+        <section className="relative flex flex-col justify-between bg-white p-5 dark:bg-[#111827] sm:p-8 lg:p-8 xl:p-10">
           {/* Top Row: Theme Toggle */}
           <div className="flex items-center justify-end">
             <ThemePicker />
           </div>
 
           {/* Center Form Area */}
-          <div className="mx-auto w-full max-w-[380px] my-auto py-6">
-            <div className="text-center mb-8">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEF2FF] dark:bg-[#1E293B] shadow-sm ring-1 ring-[#DDE3FF] dark:ring-[#334155]">
-                <img src="/unideals-logo.svg" alt="UniDeals Logo" className="h-9 w-9 object-contain" />
+          <div className="mx-auto my-auto w-full max-w-[360px] py-3 sm:py-4">
+            <div className="mb-6 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEF2FF] shadow-sm ring-1 ring-[#DDE3FF] dark:bg-[#1E293B] dark:ring-[#334155]">
+                <img src="/unideals-logo.svg" alt="UniDeals Logo" className="h-7 w-7 object-contain" />
               </div>
-              <h2 className="text-2xl sm:text-[28px] font-bold text-[#0B1220] dark:text-white tracking-tight">
+              <h2 className="text-2xl font-bold tracking-tight text-[#0B1220] dark:text-white sm:text-[26px]">
                 Welcome Back
               </h2>
               <p className="mt-1.5 text-sm text-[#64748B] dark:text-[#94A3B8]">
@@ -175,7 +146,7 @@ const Login = () => {
               </p>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5">
               {/* EMAIL */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-2">

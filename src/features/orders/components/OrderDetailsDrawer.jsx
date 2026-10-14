@@ -45,37 +45,39 @@ const formatDate = (d) => {
 const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [updating, setUpdating] = useState(false)
   const [selectedNextStatus, setSelectedNextStatus] = useState('')
   const { showToast } = useToast()
   const { canWrite } = useAuth()
 
   useEffect(() => {
-    if (!orderId) {
-      setOrder(null)
-      return
-    }
+    if (!orderId) return
 
     let active = true
-    setLoading(true)
+    const loadOrder = async () => {
+      await Promise.resolve()
+      if (!active) return
+      setLoading(true)
+      setLoadError('')
+      setOrder(null)
 
-    ordersApi
-      .getOrderDetails(orderId)
-      .then((res) => {
+      try {
+        const res = await ordersApi.getOrderDetails(orderId)
         if (!active) return
         if (res?.success && res.data) {
           setOrder(res.data)
           setSelectedNextStatus(res.data.status || 'pending')
         } else {
-          setOrder(null)
+          setLoadError(res?.message || 'Unable to load order details.')
         }
-        setLoading(false)
-      })
-      .catch(() => {
-        if (!active) return
-        setOrder(null)
-        setLoading(false)
-      })
+      } catch (error) {
+        if (active) setLoadError(error.message || 'Unable to load order details.')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    loadOrder()
 
     return () => {
       active = false
@@ -142,9 +144,9 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
         <div class="section" style="display: flex; gap: 40px;">
           <div>
             <div class="section-title">Buyer Information</div>
-            <div><strong>${order.buyer?.name}</strong></div>
-            <div>${order.buyer?.email}</div>
-            <div>${order.buyer?.phone}</div>
+            <div><strong>${order.buyer?.name || '—'}</strong></div>
+            <div>${order.buyer?.email || '—'}</div>
+            <div>${order.buyer?.phone || '—'}</div>
             <div>Campus: ${order.campus}</div>
           </div>
           <div>
@@ -166,18 +168,19 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
             <tbody>
               <tr>
                 <td><strong>${order.product?.title || 'Campus Item'}</strong></td>
-                <td>${order.product?.category || 'General'}</td>
-                <td>1</td>
+                <td>${order.product?.category || '—'}</td>
+                <td>${order.product?.quantity || 1}</td>
                 <td style="text-align: right;">${formatPrice(order.amount)}</td>
               </tr>
               <tr>
-                <td colspan="3" style="text-align: right;">Subtotal:</td>
-                <td style="text-align: right;">${formatPrice(order.amount)}</td>
+                <td colspan="3" style="text-align: right;">Original price:</td>
+                <td style="text-align: right;">${formatPrice(order.originalAmount ?? order.amount)}</td>
               </tr>
+              ${(order.originalAmount ?? order.amount) > order.amount ? `
               <tr>
-                <td colspan="3" style="text-align: right;">Campus Delivery / Platform:</td>
-                <td style="text-align: right;">FREE</td>
-              </tr>
+                <td colspan="3" style="text-align: right;">Discount:</td>
+                <td style="text-align: right;">-${formatPrice((order.originalAmount ?? order.amount) - order.amount)}</td>
+              </tr>` : ''}
               <tr class="total-row">
                 <td colspan="3" style="text-align: right;">Total Amount:</td>
                 <td style="text-align: right;">${formatPrice(order.amount)}</td>
@@ -187,7 +190,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
         </div>
         <div class="section">
           <div class="section-title">Payment Info</div>
-          <div>Method: ${order.payment?.method || 'Cash / UPI'} (${order.payment?.status || 'Paid'})</div>
+          <div>Method: ${order.payment?.method || '—'} (${order.payment?.status || 'Unknown'})</div>
           ${order.payment?.txnId ? `<div>Txn Ref: ${order.payment.txnId}</div>` : ''}
         </div>
         <div class="footer">
@@ -210,7 +213,10 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
   }
 
   const handleContactCustomer = () => {
-    if (!order?.buyer) return
+    if (!order?.buyer?.email) {
+      showToast({ type: 'error', message: 'Customer email is unavailable.' })
+      return
+    }
     window.location.href = `mailto:${order.buyer.email}?subject=UniDeals Order ${order.orderId} Support`
   }
 
@@ -276,12 +282,6 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
                     Customer
                   </span>
-                  <button
-                    onClick={handleContactCustomer}
-                    className="text-xs font-semibold text-primary hover:underline"
-                  >
-                    View Profile
-                  </button>
                 </div>
                 <div className="p-3.5 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-slate-50/50 dark:bg-[#1E293B]/40 flex items-start gap-3">
                   <Avatar
@@ -292,11 +292,11 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm text-[#0B1220] dark:text-white truncate">
-                        {order.buyer?.name || 'Student Buyer'}
+                        {order.buyer?.name || '—'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                      <span>#{order.buyer?.id?.slice(-6) || 'USR001'}</span>
+                      <span>#{order.buyer?.id?.slice(-6) || '—'}</span>
                       <span>•</span>
                       <span className="text-[#3B82F6] font-medium">{order.campus}</span>
                     </div>
@@ -312,7 +312,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#94A3B8] shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                         </svg>
-                        <span>{order.buyer?.phone || '+91 98765 43210'}</span>
+                        <span>{order.buyer?.phone || '—'}</span>
                       </div>
                     </div>
                   </div>
@@ -325,7 +325,6 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
                     Delivery Address / Meetup Spot
                   </span>
-                  <span className="text-xs text-primary font-medium">Campus Spot</span>
                 </div>
                 <div className="p-3.5 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-slate-50/50 dark:bg-[#1E293B]/40 flex items-start gap-2.5">
                   <svg viewBox="0 0 24 24" className="h-4 w-4 text-primary shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -344,7 +343,7 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
               {/* Products */}
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] block mb-2.5">
-                  Products (1)
+                  Product
                 </span>
                 <div className="space-y-3">
                   <div className="p-3 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-slate-50/50 dark:bg-[#1E293B]/40 flex items-center gap-3">
@@ -355,10 +354,10 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-sm text-[#0B1220] dark:text-white truncate">
-                        {order.product?.title || 'Campus Item'}
+                        {order.product?.title || '—'}
                       </div>
                       <div className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                        {order.product?.category || 'General'} • Qty: 1
+                        {order.product?.category || '—'} • Qty: {order.product?.quantity || 1}
                       </div>
                     </div>
                     <div className="text-sm font-bold text-[#0B1220] dark:text-white shrink-0">
@@ -369,17 +368,19 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   {/* Pricing Breakdown */}
                   <div className="p-3.5 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] space-y-1.5 text-xs text-[#64748B] dark:text-[#94A3B8]">
                     <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span className="text-[#0B1220] dark:text-white">{formatPrice(order.amount)}</span>
+                      <span>Original price</span>
+                      <span className="text-[#0B1220] dark:text-white">
+                        {formatPrice(order.originalAmount ?? order.amount)}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Campus Delivery Fee</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">FREE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Discount</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">-₹0</span>
-                    </div>
+                    {(order.originalAmount ?? order.amount) > order.amount && (
+                      <div className="flex justify-between">
+                        <span>Discount</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                          -{formatPrice((order.originalAmount ?? order.amount) - order.amount)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between pt-2 border-t border-[#E2E8F0] dark:border-[#2D3748] text-sm font-bold text-[#0B1220] dark:text-white">
                       <span>Total</span>
                       <span>{formatPrice(order.amount)}</span>
@@ -401,18 +402,18 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[#0B1220] dark:text-white">
-                          {order.payment?.method || 'Razorpay (UPI)'}
+                          {order.payment?.method || '—'}
                         </span>
                         <span
                           className={`inline-block px-2 py-0.2 rounded-sm text-[10px] font-semibold ${
-                            paymentStyles[order.payment?.status] || paymentStyles.Paid
+                            paymentStyles[order.payment?.status] || paymentStyles.Pending
                           }`}
                         >
-                          {order.payment?.status || 'Paid'}
+                          {order.payment?.status || 'Unknown'}
                         </span>
                       </div>
                       <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-                        Txn ID: {order.payment?.txnId || `pay_${String(order.id).slice(-8)}`}
+                        Txn ID: {order.payment?.txnId || '—'}
                       </div>
                     </div>
                   </div>
@@ -425,53 +426,34 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
                   Order Timeline
                 </span>
                 <div className="space-y-4 pl-1">
-                  {(order.timeline || [
-                    { title: 'Order Placed', time: formatDate(order.orderDate), done: true },
-                    {
-                      title: 'Deal / Offer Confirmed',
-                      time: formatDate(order.orderDate),
-                      done: ['processing', 'scheduled', 'delivered'].includes(order.status),
-                    },
-                    {
-                      title: 'Pickup / Meetup Scheduled',
-                      time: ['scheduled', 'delivered'].includes(order.status)
-                        ? formatDate(order.orderDate)
-                        : 'Pending',
-                      done: ['scheduled', 'delivered'].includes(order.status),
-                    },
-                    {
-                      title: 'Delivered / Completed',
-                      time: order.status === 'delivered' ? formatDate(order.orderDate) : 'Pending',
-                      done: order.status === 'delivered',
-                    },
-                  ]).map((step, idx) => (
+                  {(order.timeline || []).map((step, idx) => (
                     <div key={idx} className="flex items-start gap-3 relative">
                       {idx < 3 && (
                         <div
                           className={`absolute left-2.5 top-6 bottom-0 w-0.5 ${
-                            step.done ? 'bg-emerald-500' : 'bg-[#E2E8F0] dark:bg-[#334155]'
+                            step.completed ? 'bg-emerald-500' : 'bg-[#E2E8F0] dark:bg-[#334155]'
                           }`}
                         />
                       )}
                       <div
                         className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 z-10 ${
-                          step.done
+                          step.completed
                             ? 'bg-emerald-500 text-white'
                             : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                         }`}
                       >
-                        {step.done ? '✓' : idx + 1}
+                        {step.completed ? '✓' : idx + 1}
                       </div>
                       <div className="text-xs">
                         <div
                           className={`font-semibold ${
-                            step.done ? 'text-[#0B1220] dark:text-white' : 'text-[#94A3B8]'
+                            step.completed ? 'text-[#0B1220] dark:text-white' : 'text-[#94A3B8]'
                           }`}
                         >
-                          {step.title}
+                          {step.label}
                         </div>
                         <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-                          {step.time}
+                          {formatDate(step.date)}
                         </div>
                       </div>
                     </div>
@@ -508,9 +490,9 @@ const OrderDetailsDrawer = ({ orderId, onClose, onStatusChange }) => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-[#64748B]">
-              Order details not found.
-            </div>
+            <p role="alert" className="flex flex-1 items-center justify-center p-8 text-sm text-rose-600">
+              {loadError || 'Unable to load order details.'}
+            </p>
           )}
 
           {/* Action Footer */}

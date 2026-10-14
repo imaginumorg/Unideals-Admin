@@ -13,39 +13,39 @@ const formatDate = (d) => {
   }
 }
 
-const formatPrice = (p) =>
-  p != null ? `₹${Number(p).toLocaleString('en-IN')}` : '₹0'
-
 const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('Overview')
+  const [loadError, setLoadError] = useState('')
   const { showToast } = useToast()
   const { canWrite } = useAuth()
 
   useEffect(() => {
-    if (!userId || String(userId).startsWith('USR')) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
+    if (!userId) return
 
     let active = true
-    setLoading(true)
-
-    usersApi.getUserDetails(userId).then((res) => {
+    const loadUser = async () => {
+      await Promise.resolve()
       if (!active) return
-      if (res?.success && res?.data) {
-        setUser(res.data)
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
-    }).catch(() => {
-      if (!active) return
+      setLoading(true)
+      setLoadError('')
       setUser(null)
-      setLoading(false)
-    })
+
+      try {
+        const res = await usersApi.getUserDetails(userId)
+        if (!active) return
+        if (res?.success && res?.data) {
+          setUser(res.data)
+        } else {
+          setLoadError(res?.message || 'Unable to load user details.')
+        }
+      } catch (error) {
+        if (active) setLoadError(error.message || 'Unable to load user details.')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    loadUser()
 
     return () => {
       active = false
@@ -56,18 +56,14 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
 
   const handleToggleSuspend = async () => {
     if (!user) return
-    const nextStatus = user.status === 'suspended' ? 'active' : 'suspended'
-    const res = await onStatusChange(user.id, nextStatus)
+    const nextStatus = user.status === 'active' ? 'suspended' : 'active'
+    const res = await onStatusChange(user.id || user._id, nextStatus)
     if (res?.success) {
       setUser((prev) => ({ ...prev, status: nextStatus }))
+    } else {
+      showToast({ type: 'error', message: res?.message || 'Unable to update user status.' })
     }
   }
-
-  const handleQuickAction = (actionName) => {
-    showToast({ type: 'info', message: `${actionName} initiated for ${user?.name}` })
-  }
-
-  const tabs = ['Overview', 'Activity', 'Listings', 'Orders', 'Reports']
 
   return (
     <>
@@ -124,11 +120,15 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                     user.status === 'suspended'
                       ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                      : user.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                   }`}
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                  {user.status === 'suspended' ? 'Suspended' : 'Active'}
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    user.status === 'suspended' ? 'bg-rose-500' : user.status === 'active' ? 'bg-emerald-500' : 'bg-slate-500'
+                  }`} />
+                  {user.status ? `${user.status[0].toUpperCase()}${user.status.slice(1)}` : 'Unknown'}
                 </span>
                 <span
                   className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
@@ -175,67 +175,16 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
               </div>
             </div>
 
-            {/* Profile Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleQuickAction('View Profile')}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#CBD5E1] dark:border-[#334155] py-2 px-3 text-xs font-semibold text-[#0B1220] dark:text-white hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] transition"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>View Profile</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAction('Edit User')}
-                disabled={!canWrite}
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] py-2 px-3 text-xs font-semibold text-white shadow-sm shadow-blue-500/20 transition disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
-                <span>Edit User</span>
-              </button>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 border-b border-[#E2E8F0] dark:border-[#1E293B] text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">
-              {tabs.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setActiveTab(t)}
-                  className={`pb-2.5 transition relative ${
-                    activeTab === t ? 'text-[#2563EB] dark:text-blue-400 font-bold' : 'hover:text-[#0B1220] dark:hover:text-white'
-                  }`}
-                >
-                  {t}
-                  {activeTab === t && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB] dark:bg-blue-400 rounded-full" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* TAB CONTENT: Overview */}
-            {activeTab === 'Overview' && (
-              <div className="space-y-6">
-                {/* 3 Metric Counters */}
-                <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="space-y-6">
+                {/* Account data available from the admin API */}
+                <div className="grid grid-cols-2 gap-2 text-center">
                   <div className="p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#161F32] border border-[#E2E8F0]/60 dark:border-[#24304A]">
                     <p className="text-lg font-bold text-[#0B1220] dark:text-white">{user.listings ?? user.listingsCount ?? 0}</p>
                     <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Products Listed</p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#161F32] border border-[#E2E8F0]/60 dark:border-[#24304A]">
-                    <p className="text-lg font-bold text-[#0B1220] dark:text-white">{user.orders ?? 0}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Orders Placed</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#161F32] border border-[#E2E8F0]/60 dark:border-[#24304A]">
-                    <p className="text-lg font-bold text-[#0B1220] dark:text-white">{formatPrice(user.totalSpent ?? 0)}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Total Spent</p>
+                    <p className="text-lg font-bold text-[#0B1220] dark:text-white">{user.reportCount ?? '—'}</p>
+                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Reports</p>
                   </div>
                 </div>
 
@@ -250,47 +199,8 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
                     <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Campus</p>
                   </div>
                   <div>
-                    <p className="font-bold text-emerald-600 dark:text-emerald-400">Verified</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Account Status</p>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-[#0B1220] dark:text-white">Recent Activity</h4>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('Activity')}
-                      className="text-[11px] font-semibold text-[#2563EB] hover:underline"
-                    >
-                      View all →
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {user.activities?.length ? (
-                      user.activities.map((act) => (
-                        <div
-                          key={act.id}
-                          className="flex items-center justify-between rounded-xl p-2.5 bg-[#F8FAFC] dark:bg-[#161F32] text-xs"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#2563EB]">
-                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect width="18" height="18" x="3" y="3" rx="2" />
-                              </svg>
-                            </span>
-                            <div>
-                              <p className="font-medium text-[#0B1220] dark:text-white leading-tight">{act.title}</p>
-                              {act.detail && <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{act.detail}</p>}
-                            </div>
-                          </div>
-                          <span className="text-[11px] text-[#94A3B8]">{act.time}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="py-4 text-center text-xs text-[#94A3B8]">No recent activity recorded.</p>
-                    )}
+                    <p className="font-bold text-[#0B1220] dark:text-white">{formatDate(user.lastLoginAt)}</p>
+                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Last Login</p>
                   </div>
                 </div>
 
@@ -300,40 +210,19 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => handleQuickAction('Send Message')}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#161F32] p-2.5 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#1F293D] transition shadow-xs"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#64748B]" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect width="20" height="16" x="2" y="4" rx="2" />
-                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                      </svg>
-                      <span>Send Message</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickAction('View Orders')}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#161F32] p-2.5 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#1F293D] transition shadow-xs"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#64748B]" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                      </svg>
-                      <span>View Orders</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={handleToggleSuspend}
                       disabled={!canWrite}
                       className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-medium transition shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
-                        user.status === 'suspended'
-                          ? 'border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                          : 'border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400'
+                        user.status === 'active'
+                          ? 'border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400'
+                          : 'border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
                       }`}
                     >
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="4.93" x2="19.07" y1="4.93" y2="19.07" />
                       </svg>
-                      <span>{user.status === 'suspended' ? 'Activate User' : 'Suspend User'}</span>
+                      <span>{user.status === 'active' ? 'Suspend User' : 'Activate User'}</span>
                     </button>
                     {canWrite && (
                       <button
@@ -341,8 +230,8 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
                         onClick={async () => {
                           const nextRole = user.role === 'support' ? 'user' : 'support'
                           if (onRoleChange) {
-                            await onRoleChange(user.id, nextRole)
-                            setUser((prev) => ({ ...prev, role: nextRole }))
+                            const result = await onRoleChange(user.id || user._id, nextRole)
+                            if (result?.success) setUser((prev) => ({ ...prev, role: nextRole }))
                           }
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 p-2.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition shadow-xs"
@@ -356,31 +245,13 @@ const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) =>
                         <span>{user.role === 'support' ? 'Remove Support' : 'Make Support'}</span>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleQuickAction('Reset Password')}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#161F32] p-2.5 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#1F293D] transition shadow-xs"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#64748B]" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect width="18" height="11" x="3" y="11" rx="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                      <span>Reset Password</span>
-                    </button>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* OTHER TABS */}
-            {activeTab !== 'Overview' && (
-              <div className="py-6 text-center text-xs text-[#94A3B8]">
-                <p>Viewing user details for <strong className="text-[#0B1220] dark:text-white">{activeTab}</strong> tab.</p>
-                <p className="mt-1">Records are current as of today.</p>
-              </div>
-            )}
+            </div>
           </div>
-        ) : null}
+        ) : (
+          <p role="alert" className="p-5 text-sm text-rose-600">{loadError || 'Unable to load user details.'}</p>
+        )}
       </aside>
     </>
   )

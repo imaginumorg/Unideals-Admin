@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { usersApi } from '../api/usersApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import UserDetailsDrawer from '../components/UserDetailsDrawer'
@@ -37,15 +37,12 @@ const Users = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [campusFilter, setCampusFilter] = useState('All Campuses')
   const [statusFilter, setStatusFilter] = useState('All Status')
-  const [userTypeFilter, setUserTypeFilter] = useState('All User Types')
-  const [joinedDateFilter, setJoinedDateFilter] = useState('All Dates')
-  const [selectedUserIds, setSelectedUserIds] = useState(new Set())
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [usersList, setUsersList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', campus: 'VIT Vellore', phone: '' })
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
   const [userStats, setUserStats] = useState({
     totalUsers: 0,
     totalGrowth: 0,
@@ -61,6 +58,7 @@ const Users = () => {
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    setLoadError('')
     const effectiveCampus = campusFilter === 'All Campuses' ? '' : campusFilter
     const effectiveStatus = statusFilter === 'All Status' ? '' : statusFilter.toLowerCase()
     
@@ -77,45 +75,33 @@ const Users = () => {
 
     if (res?.success && Array.isArray(res.data)) {
       setUsersList(res.data)
+      setPagination({
+        total: res.pagination?.total ?? res.data.length,
+        totalPages: Math.max(1, res.pagination?.totalPages ?? 1),
+      })
     } else {
       setUsersList([])
+      setLoadError(res?.message || 'Unable to load users.')
     }
 
     if (statsRes?.success && statsRes.data) {
       setUserStats(statsRes.data)
+    } else {
+      setLoadError((current) => current || statsRes?.message || 'Unable to load user statistics.')
     }
+    if (res?.success && statsRes?.success) setLoadError('')
 
     setLoading(false)
   }, [searchQuery, campusFilter, statusFilter, currentPage])
 
   useEffect(() => {
-    loadData()
+    Promise.resolve().then(loadData)
   }, [loadData])
-
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedUserIds(new Set(usersList.map((u) => u.id)))
-    } else {
-      setSelectedUserIds(new Set())
-    }
-  }
-
-  const handleToggleSelect = (id, e) => {
-    e.stopPropagation()
-    setSelectedUserIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   const handleResetFilters = () => {
     setSearchQuery('')
     setCampusFilter('All Campuses')
     setStatusFilter('All Status')
-    setUserTypeFilter('All User Types')
-    setJoinedDateFilter('All Dates')
     setCurrentPage(1)
   }
 
@@ -125,6 +111,8 @@ const Users = () => {
     if (res.success) {
       showToast({ type: 'success', message: `User status changed to ${nextStatus}` })
       loadData()
+    } else {
+      showToast({ type: 'error', message: res.message })
     }
     return res
   }
@@ -138,18 +126,7 @@ const Users = () => {
     } else {
       showToast({ type: 'error', message: res.message })
     }
-  }
-
-  const handleAddUser = async (e) => {
-    e.preventDefault()
-    if (!newUserForm.name || !newUserForm.email) return
-    const res = await usersApi.createUser(newUserForm)
-    if (res.success) {
-      showToast({ type: 'success', message: 'User added successfully' })
-      setShowAddModal(false)
-      setNewUserForm({ name: '', email: '', campus: 'VIT Vellore', phone: '' })
-      loadData()
-    }
+    return res
   }
 
   return (
@@ -164,21 +141,11 @@ const Users = () => {
             Manage platform users, monitor account health, and adjust access permissions.
           </p>
         </div>
-        <div>
-          {canWrite ? (
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 text-sm font-semibold shadow-md shadow-blue-500/20 transition active:scale-[0.98]"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              <span>Add User</span>
-            </button>
-          ) : null}
-        </div>
+        {loadError && (
+          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {loadError}
+          </p>
+        )}
       </div>
 
       {/* 4 Stat Metric Cards (Image 2) */}
@@ -301,7 +268,10 @@ const Users = () => {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setCurrentPage(1)
+              }}
               placeholder="Search by name, email, user ID or campus..."
               className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-[#F8FAFC] dark:bg-[#1A2234] pl-10 pr-4 py-2.5 text-xs sm:text-sm text-[#0B1220] dark:text-white placeholder-[#94A3B8] outline-none transition focus:border-[#2563EB] focus:bg-white dark:focus:bg-[#1A2234]"
             />
@@ -312,7 +282,10 @@ const Users = () => {
             {/* Campus dropdown */}
             <select
               value={campusFilter}
-              onChange={(e) => setCampusFilter(e.target.value)}
+              onChange={(e) => {
+                setCampusFilter(e.target.value)
+                setCurrentPage(1)
+              }}
               className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none"
             >
               <option>All Campuses</option>
@@ -327,35 +300,15 @@ const Users = () => {
             {/* Status dropdown */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setCurrentPage(1)
+              }}
               className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none"
             >
               <option>All Status</option>
               <option>Active</option>
               <option>Suspended</option>
-            </select>
-
-            {/* User types dropdown */}
-            <select
-              value={userTypeFilter}
-              onChange={(e) => setUserTypeFilter(e.target.value)}
-              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none hidden sm:block"
-            >
-              <option>All User Types</option>
-              <option>Students</option>
-              <option>Moderators</option>
-              <option>Admins</option>
-            </select>
-
-            {/* Joined Date */}
-            <select
-              value={joinedDateFilter}
-              onChange={(e) => setJoinedDateFilter(e.target.value)}
-              className="rounded-xl border border-[#E2E8F0] dark:border-[#2D3748] bg-white dark:bg-[#1A2234] px-3 py-2 text-xs font-medium text-[#334155] dark:text-[#CBD5E1] outline-none hidden md:block"
-            >
-              <option>Joined Date</option>
-              <option>Newest First</option>
-              <option>Oldest First</option>
             </select>
 
             {/* Reset Button */}
@@ -376,14 +329,6 @@ const Users = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-[#F8FAFC] dark:bg-[#161F32] border-b border-[#E2E8F0] dark:border-[#1E293B] text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
               <tr>
-                <th className="py-3.5 px-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={usersList.length > 0 && selectedUserIds.size === usersList.length}
-                    onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-[#CBD5E1] text-[#2563EB]"
-                  />
-                </th>
                 <th className="py-3.5 px-4">User</th>
                 <th className="py-3.5 px-4">Email</th>
                 <th className="py-3.5 px-4">Campus</th>
@@ -398,19 +343,18 @@ const Users = () => {
             <tbody className="divide-y divide-[#F1F5F9] dark:divide-[#1E293B] text-[#334155] dark:text-[#CBD5E1]">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-[#94A3B8]">
+                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
                     Loading user records...
                   </td>
                 </tr>
               ) : usersList.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-[#94A3B8]">
+                  <td colSpan={9} className="py-12 text-center text-[#94A3B8]">
                     No users found matching your filters.
                   </td>
                 </tr>
               ) : (
                 usersList.map((user) => {
-                  const isSelected = selectedUserIds.has(user.id)
                   const isViewing = selectedUserId === user.id
                   const campusLabel = getCampusLabel(user.campus)
                   const campusBadge = campusBadgeStyles[campusLabel] || 'bg-slate-100 text-slate-700'
@@ -423,16 +367,6 @@ const Users = () => {
                         isViewing ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
                       }`}
                     >
-                      {/* Checkbox */}
-                      <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => handleToggleSelect(user.id, e)}
-                          className="h-4 w-4 rounded border-[#CBD5E1] text-[#2563EB]"
-                        />
-                      </td>
-
                       {/* User Avatar & Name */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
@@ -532,55 +466,23 @@ const Users = () => {
         {/* Pagination Footer */}
         <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-[#E2E8F0] dark:border-[#1E293B] gap-3 text-xs text-[#64748B] dark:text-[#94A3B8]">
           <p>
-            Showing 1-{usersList.length} of 5,284 users
+            Showing {pagination.total === 0 ? 0 : (currentPage - 1) * 8 + 1}-
+            {Math.min(currentPage * 8, pagination.total)} of {pagination.total} users
           </p>
           <div className="flex items-center gap-1">
             <button
               type="button"
               disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               className="h-8 w-8 rounded-lg border border-[#E2E8F0] dark:border-[#2D3748] flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234] disabled:opacity-40"
             >
               ‹
             </button>
+            <span className="px-2 font-semibold">Page {currentPage} of {pagination.totalPages}</span>
             <button
               type="button"
-              onClick={() => setCurrentPage(1)}
-              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
-                currentPage === 1 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
-              }`}
-            >
-              1
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(2)}
-              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
-                currentPage === 2 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
-              }`}
-            >
-              2
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(3)}
-              className={`h-8 w-8 rounded-lg font-bold flex items-center justify-center ${
-                currentPage === 3 ? 'bg-[#2563EB] text-white' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]'
-              }`}
-            >
-              3
-            </button>
-            <span className="px-1 text-[#94A3B8]">...</span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(661)}
-              className="h-8 px-2 rounded-lg font-semibold flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]"
-            >
-              661
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage >= pagination.totalPages}
+              onClick={() => setCurrentPage((page) => page + 1)}
               className="h-8 w-8 rounded-lg border border-[#E2E8F0] dark:border-[#2D3748] flex items-center justify-center hover:bg-[#F8FAFC] dark:hover:bg-[#1A2234]"
             >
               ›
@@ -597,87 +499,6 @@ const Users = () => {
         onRoleChange={handleRoleChange}
       />
 
-      {/* Add User Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1E293B] p-6 shadow-2xl border border-[#E2E8F0] dark:border-[#334155] animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9] dark:border-[#2D3748]">
-              <h3 className="text-base font-bold text-[#0B1220] dark:text-white">Add New User</h3>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="text-[#94A3B8] hover:text-[#0B1220] dark:hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleAddUser} className="space-y-4 pt-4 text-xs">
-              <div>
-                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newUserForm.name}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
-                  placeholder="e.g. Rohit Verma"
-                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">College Email</label>
-                <input
-                  type="email"
-                  required
-                  value={newUserForm.email}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                  placeholder="e.g. rohit.v@vitstudent.ac.in"
-                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  value={newUserForm.phone}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
-                  placeholder="+91 98765 00000"
-                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-[#64748B] dark:text-[#94A3B8] mb-1">Campus</label>
-                <select
-                  value={newUserForm.campus}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, campus: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#111827] p-2.5 outline-none"
-                >
-                  <option>VIT Vellore</option>
-                  <option>SRM Chennai</option>
-                  <option>Amrita</option>
-                  <option>Manipal</option>
-                  <option>Delhi University</option>
-                  <option>IIT Madras</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl border border-[#CBD5E1] font-semibold text-[#64748B]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-semibold shadow-xs"
-                >
-                  Create User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
