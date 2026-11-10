@@ -7,17 +7,29 @@ import AdminLayout from '../layouts/AdminLayout'
 const Login = lazy(() => import('../features/auth/pages/Login'))
 const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard'))
 const Users = lazy(() => import('../features/users/pages/Users'))
+const GenderRequests = lazy(() => import('../features/users/pages/GenderRequests'))
 const Products = lazy(() => import('../features/products/pages/Products'))
 const Orders = lazy(() => import('../features/orders/pages/Orders'))
 const Campuses = lazy(() => import('../features/campuses/pages/Campuses'))
 const ModerationQueue = lazy(() => import('../features/reports/pages/ModerationQueue'))
 const AuditLog = lazy(() => import('../features/analytics/pages/AuditLog'))
 const Notification = lazy(() => import('../features/notifications/pages/Notification'))
+const Profile = lazy(() => import('../features/profile/pages/Profile'))
+
+// Old paths kept working so bookmarks don't break.
+const LEGACY_REDIRECTS = {
+  '/moderation-queue': '/moderation',
+  '/reports': '/moderation',
+  '/notification': '/push-notifications',
+  '/settings': '/profile',
+  '/account': '/profile',
+  '/analytics': '/dashboard',
+}
 
 const App = () => {
   const { isAuthenticated, sessionLoading } = useAuth()
 
-  if (sessionLoading) return <Loader />
+  if (sessionLoading) return <Loader fullScreen />
 
   return (
     <Suspense fallback={<Loader />}>
@@ -27,17 +39,17 @@ const App = () => {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/gender-requests" element={<GenderRequests />} />
           <Route path="/products" element={<Products />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/campuses" element={<Campuses />} />
           <Route path="/moderation" element={<ModerationQueue />} />
-          <Route path="/moderation-queue" element={<Navigate to="/moderation" replace />} />
-          <Route path="/reports" element={<Navigate to="/moderation" replace />} />
-          <Route path="/analytics" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/push-notifications" element={<Notification />} />
-          <Route path="/notification" element={<Notification />} />
-          <Route path="/settings" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/profile" element={<Profile />} />
+          {Object.entries(LEGACY_REDIRECTS).map(([from, to]) => (
+            <Route key={from} path={from} element={<Navigate to={to} replace />} />
+          ))}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

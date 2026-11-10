@@ -1,41 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/**
+ * Runs `request` (a fetcher-style function) whenever its identity changes.
+ * - loading: true until the first response
+ * - refreshing: true while any later request is in flight
+ * Stale responses from superseded requests are ignored.
+ */
 export const useFetch = (request) => {
-  const [responseData, setResponseData] = useState()
-  const [responsePagination, setResponsePagination] = useState()
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
-  const latestRequestId = useRef(0)
-  const hasLoadedData = useRef(false)
+  const [data, setData] = useState()
+  const [pagination, setPagination] = useState()
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
+  const latestId = useRef(0)
 
-  const runRequest = useCallback(async () => {
-    const requestId = latestRequestId.current + 1
-    latestRequestId.current = requestId
-
-    setIsLoading((currentLoading) => currentLoading || !hasLoadedData.current)
-    setErrorMessage('')
+  const run = useCallback(async () => {
+    const id = latestId.current + 1
+    latestId.current = id
+    setRefreshing(true)
     const response = await request()
-
-    if (requestId !== latestRequestId.current) {
-      return response
-    }
+    if (id !== latestId.current) return response
 
     if (response.success) {
-      setResponseData(response.data)
-      setResponsePagination(response.pagination)
-      hasLoadedData.current = true
+      setData(response.data)
+      setPagination(response.pagination ?? undefined)
+      setError('')
     } else {
-      setErrorMessage(response.message)
+      setError(response.message || 'Request failed')
     }
-
-    setIsLoading(false)
+    setLoading(false)
+    setRefreshing(false)
     return response
   }, [request])
 
   useEffect(() => {
-    const requestTimer = window.setTimeout(runRequest, 0)
-    return () => window.clearTimeout(requestTimer)
-  }, [runRequest])
+    const timer = window.setTimeout(run, 0)
+    return () => window.clearTimeout(timer)
+  }, [run])
 
-  return { data: responseData, pagination: responsePagination, loading: isLoading, error: errorMessage, refetch: runRequest }
+  return { data, pagination, loading, refreshing, error, refetch: run }
 }

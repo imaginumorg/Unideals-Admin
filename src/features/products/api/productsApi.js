@@ -1,29 +1,17 @@
 import { createApiResponse, fetcher, requestBackend } from '../../../shared/lib/apiClient'
 
-const mapStatusToBackend = (status) => {
-  if (!status) return ''
-  const normalized = String(status).toLowerCase().trim()
-  if (normalized.includes('all')) return ''
-  if (['pending', 'draft', 'drafts'].includes(normalized)) return 'draft'
-  if (['approved', 'listed', 'active'].includes(normalized)) return 'listed'
-  if (normalized === 'blocked') return 'blocked'
-  if (['rejected', 'unlisted'].includes(normalized)) return 'unlisted'
-  if (normalized === 'sold') return 'sold'
-  return ''
-}
-
+// Backend product statuses, used as-is: draft | listed | sold | unlisted | blocked
 export const productsApi = {
-  getProducts: ({ search = '', category = '', campus = '', status = '', page = 1, limit = 10 } = {}) =>
+  getProducts: ({ search = '', category = '', campus = '', status = '', page = 1, limit = 12 } = {}) =>
     fetcher(async () => {
-      const query = { page, limit }
-      if (search) query.search = search
-      if (category && !category.includes('All')) query.category = category
-      if (campus && !campus.includes('All')) query.campus = campus
-      const backendStatus = mapStatusToBackend(status)
-      if (backendStatus) query.status = backendStatus
-
-      const response = await requestBackend('/admin/products', { query })
-      return createApiResponse(response.data, response.message, response.pagination)
+      const response = await requestBackend('/admin/products', {
+        query: { search: search.trim(), category, campus, status, page, limit },
+      })
+      return createApiResponse(
+        { items: response.data || [], statusCounts: response.statusCounts || null },
+        response.message,
+        response.pagination,
+      )
     }),
 
   getProductDetails: (productId) =>
@@ -33,29 +21,44 @@ export const productsApi = {
       return createApiResponse(response.data, response.message)
     }),
 
-  updateProduct: (productId, updates) =>
+  updateProductStatus: (productId, status, reason = '') =>
     fetcher(async () => {
-      const backendUpdates = { ...updates }
-      if (updates.status) {
-        const status = String(updates.status).toLowerCase().trim()
-        if (status === 'approved') backendUpdates.status = 'listed'
-        else if (status === 'rejected' || status === 'unlisted') backendUpdates.status = 'unlisted'
-        else if (status === 'blocked') backendUpdates.status = 'blocked'
-        else if (status === 'pending') backendUpdates.status = 'draft'
-      }
       const response = await requestBackend(`/admin/products/${productId}/status`, {
         method: 'PATCH',
-        body: backendUpdates,
+        body: { status, ...(reason ? { reason } : {}) },
       })
+      return createApiResponse(response.data, response.message)
+    }),
+
+  softDeleteProduct: (productId) =>
+    fetcher(async () => {
+      const response = await requestBackend(`/admin/products/${productId}/soft-delete`, { method: 'PATCH' })
       return createApiResponse(response.data, response.message)
     }),
 
   hardDeleteProduct: (productId) =>
     fetcher(async () => {
       if (!productId) throw new Error('Product ID is required')
-      const response = await requestBackend(`/admin/products/${productId}`, {
-        method: 'DELETE',
-      })
+      const response = await requestBackend(`/admin/products/${productId}`, { method: 'DELETE' })
       return createApiResponse(response.data, response.message)
     }),
 }
+
+export const PRODUCT_CATEGORY_OPTIONS = [
+  'electronics',
+  'study_material',
+  'hostel_essentials',
+  'clothing',
+  'accessories',
+  'lab_equipment',
+  'sports',
+  'fitness',
+  'vehicles',
+  'event_passes',
+  'others',
+  'beauty_personal_care',
+  'womens_fashion',
+  'jewellery_hair_accessories',
+  'footwear_handbags',
+  'room_decor',
+]

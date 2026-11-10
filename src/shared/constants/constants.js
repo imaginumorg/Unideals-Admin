@@ -36,20 +36,6 @@ export const REPORT_REASONS = {
   OTHER: 'other',
 }
 
-export const STATUS_BADGE_STYLES = {
-  active: 'bg-[#ECFDF3] text-[#15803D]',
-  inactive: 'bg-[#F1F5F9] text-[#64748B]',
-  suspended: 'bg-[#FEF2F2] text-[#DC2626]',
-  listed: 'bg-[#EEF2FF] text-[#3838EC]',
-  draft: 'bg-[#F1F5F9] text-[#64748B]',
-  sold: 'bg-[#F0FDF4] text-[#15803D]',
-  unlisted: 'bg-[#FFF7ED] text-[#C2410C]',
-  blocked: 'bg-[#FEF2F2] text-[#DC2626]',
-  pending: 'bg-[#FFF7ED] text-[#C2410C]',
-  action_taken: 'bg-[#ECFDF3] text-[#15803D]',
-  dismissed: 'bg-[#F1F5F9] text-[#64748B]',
-}
-
 export const REPORT_REASON_LABELS = {
   spam_or_advertisement: 'Spam / Ad',
   fake_or_misleading: 'Fake / Misleading',
@@ -66,18 +52,45 @@ export const AUDIT_ACTION_LABELS = {
   'user.suspend': 'Suspended user',
   'user.activate': 'Activated user',
   'user.status_change': 'Changed user status',
-  'product.block': 'Blocked product',
-  'product.unlist': 'Unlisted product',
-  'product.activate': 'Activated product',
-  'product.status_change': 'Changed product status',
-  'product.soft_delete': 'Soft-deleted product',
-  'product.hard_delete': 'Permanently deleted product',
+  'user.role_change': 'Changed user role',
+  'user.gender_change_review': 'Reviewed gender change',
+  'product.block': 'Blocked listing',
+  'product.unlist': 'Unlisted listing',
+  'product.activate': 'Re-listed listing',
+  'product.status_change': 'Changed listing status',
+  'product.soft_delete': 'Removed listing',
+  'product.hard_delete': 'Permanently deleted listing',
+  'order.status_update': 'Updated order status',
   'campus.create': 'Created campus',
   'campus.update': 'Updated campus',
   'campus.activate': 'Activated campus',
   'campus.pause': 'Paused campus',
+  'campus.delete': 'Deleted campus',
   'report.dismiss': 'Dismissed reports',
+  'report.resolve': 'Resolved reports',
   'report.action_taken': 'Took action on reports',
+  'admin.password_change': 'Changed own password',
 }
+
+// Tone used for the activity feed icon of each action.
+export const AUDIT_ACTION_TONES = {
+  'user.suspend': 'danger',
+  'product.block': 'danger',
+  'product.hard_delete': 'danger',
+  'product.soft_delete': 'danger',
+  'campus.delete': 'danger',
+  'campus.pause': 'warning',
+  'product.unlist': 'warning',
+  'user.role_change': 'violet',
+  'campus.create': 'success',
+  'campus.activate': 'success',
+  'user.activate': 'success',
+  'product.activate': 'success',
+  'report.resolve': 'success',
+  'report.dismiss': 'neutral',
+  'admin.password_change': 'info',
+}
+
+export const AUDIT_TARGET_TYPES = ['user', 'product', 'order', 'campus', 'report']
 
 export const REPORT_THRESHOLD = 3

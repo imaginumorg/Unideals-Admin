@@ -1,260 +1,130 @@
-import { memo, useEffect, useState } from 'react'
-import { usersApi } from '../api/usersApi'
-import { useToast } from '../../../shared/components/ToastContext'
-import Avatar from '../../../shared/components/Avatar'
+import { memo, useCallback } from 'react'
+import { Ban, Building2, CalendarDays, Clock, Flag, Mail, Package, Phone, ShieldCheck, Trophy, UserCheck } from 'lucide-react'
 import { useAuth } from '../../auth/context/AuthContext'
+import { useFetch } from '../../../shared/hooks/useFetch'
+import { usersApi } from '../api/usersApi'
+import Avatar from '../../../shared/components/Avatar'
+import { Badge, Drawer, ErrorState, Section, Skeleton, StatusBadge } from '../../../shared/components/ui'
+import { formatCurrency, formatDate, formatDateTime, titleCase } from '../../../shared/lib/format'
 
-const formatDate = (d) => {
-  if (!d) return '—'
-  try {
-    return new Intl.DateTimeFormat('en', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(d))
-  } catch {
-    return '—'
-  }
-}
-
-const UserDetailsDrawer = ({ userId, onClose, onStatusChange, onRoleChange }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
-  const { showToast } = useToast()
+const Body = ({ userId, version, onRequestAction }) => {
   const { canWrite } = useAuth()
+  // `version` changes after an action so the drawer shows fresh data.
+  const load = useCallback(() => usersApi.getUserDetails(userId), [userId, version]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: user, loading, error, refetch } = useFetch(load)
 
-  useEffect(() => {
-    if (!userId) return
-
-    let active = true
-    const loadUser = async () => {
-      await Promise.resolve()
-      if (!active) return
-      setLoading(true)
-      setLoadError('')
-      setUser(null)
-
-      try {
-        const res = await usersApi.getUserDetails(userId)
-        if (!active) return
-        if (res?.success && res?.data) {
-          setUser(res.data)
-        } else {
-          setLoadError(res?.message || 'Unable to load user details.')
-        }
-      } catch (error) {
-        if (active) setLoadError(error.message || 'Unable to load user details.')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    loadUser()
-
-    return () => {
-      active = false
-    }
-  }, [userId])
-
-  if (!userId) return null
-
-  const handleToggleSuspend = async () => {
-    if (!user) return
-    const nextStatus = user.status === 'active' ? 'suspended' : 'active'
-    const res = await onStatusChange(user.id || user._id, nextStatus)
-    if (res?.success) {
-      setUser((prev) => ({ ...prev, status: nextStatus }))
-    } else {
-      showToast({ type: 'error', message: res?.message || 'Unable to update user status.' })
-    }
+  if (loading && !user) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    )
   }
+  if (error && !user) return <ErrorState message={error} onRetry={refetch} />
+
+  const contact = [
+    { icon: Mail, value: user.email },
+    { icon: Phone, value: user.mobile || 'No mobile' },
+    { icon: Building2, value: user.campus?.name || 'No campus' },
+    { icon: CalendarDays, value: `Joined ${formatDate(user.joinedAt)}` },
+    { icon: Clock, value: user.lastLoginAt ? `Last seen ${formatDateTime(user.lastLoginAt)}` : 'Never signed in' },
+  ]
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity"
-      />
-
-      {/* Drawer */}
-      <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col bg-white dark:bg-[#111827] shadow-2xl border-l border-[#E2E8F0] dark:border-[#1E293B] overflow-y-auto font-sans"
-        aria-label="User details panel"
-      >
-        {/* Top Close bar */}
-        <div className="flex items-center justify-between p-4 border-b border-[#F1F5F9] dark:border-[#1E293B]">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#94A3B8]">User Inspector</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
+    <div className="space-y-6">
+      <div className="flex items-start gap-4">
+        <Avatar src={user.avatar} name={user.name} className="h-16 w-16 text-lg" />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-bold text-fg">{user.name}</h3>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <StatusBadge status={user.status} />
+            {user.role === 'support' && <Badge tone="info"><ShieldCheck className="h-3 w-3" /> Support</Badge>}
+            {user.subscription && <Badge tone="brand">{titleCase(user.subscription)}</Badge>}
+            {user.gender && <Badge>{titleCase(user.gender)}</Badge>}
+          </div>
+          <p className="mt-2 font-mono text-[11px] text-subtle">{user.id}</p>
         </div>
+      </div>
 
-        {loading && !user ? (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { icon: Package, label: 'Listings', value: user.listingsCount ?? 0 },
+          { icon: Flag, label: 'Reports', value: user.reportCount ?? 0, danger: user.reportCount > 0 },
+          { icon: Trophy, label: `Level ${user.gamification?.level ?? 1}`, value: `${user.gamification?.total_xp ?? 0} XP` },
+        ].map(({ icon: Icon, label, value, danger }) => (
+          <div key={label} className="rounded-xl border border-line bg-surface-2/50 p-3">
+            <Icon className={`h-4 w-4 ${danger ? 'text-danger' : 'text-muted'}`} />
+            <p className={`mt-2 text-lg font-bold tabular-nums ${danger ? 'text-danger' : 'text-fg'}`}>{value}</p>
+            <p className="text-[11px] text-muted">{label}</p>
           </div>
-        ) : user ? (
-          <div className="p-5 space-y-6">
-            {/* User Hero Info */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <Avatar
-                  src={user.avatar}
-                  name={user.name}
-                  className="h-14 w-14 text-base"
-                  ringClassName="ring-2 ring-[#E2E8F0] dark:ring-[#334155]"
-                />
-                <div>
-                  <h3 className="text-base font-bold text-[#0B1220] dark:text-white leading-tight">
-                    {user.name}
-                  </h3>
-                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">#{user.id}</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                    user.status === 'suspended'
-                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                      : user.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}
-                >
-                  <span className={`h-1.5 w-1.5 rounded-full ${
-                    user.status === 'suspended' ? 'bg-rose-500' : user.status === 'active' ? 'bg-emerald-500' : 'bg-slate-500'
-                  }`} />
-                  {user.status ? `${user.status[0].toUpperCase()}${user.status.slice(1)}` : 'Unknown'}
+        ))}
+      </div>
+
+      <Section title="Contact">
+        <ul className="space-y-2.5">
+          {contact.map(({ icon: Icon, value }) => (
+            <li key={value} className="flex items-center gap-3 text-sm text-fg-2">
+              <Icon className="h-4 w-4 shrink-0 text-subtle" />
+              <span className="truncate">{value}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section title="Recent listings">
+        {user.recentProducts?.length ? (
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+            {user.recentProducts.map((product) => (
+              <li key={product.id} className="flex items-center gap-3 p-3">
+                <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-surface-3">
+                  {product.image && <img src={product.image} alt="" className="h-full w-full object-cover" loading="lazy" />}
                 </span>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-                    user.role === 'support'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}
-                >
-                  {user.role === 'support' ? 'Support' : 'User'}
-                </span>
-              </div>
-            </div>
-
-            {/* Contact details */}
-            <div className="space-y-2 text-xs text-[#475569] dark:text-[#94A3B8] border-b border-[#F1F5F9] dark:border-[#1E293B] pb-4">
-              <div className="flex items-center gap-2.5">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#94A3B8]" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect width="20" height="16" x="2" y="4" rx="2" />
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                </svg>
-                <span className="truncate">{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#94A3B8]" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                </svg>
-                <span>{user.phone || user.mobile || '—'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#94A3B8]" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-                <span>{typeof user.campus === 'object' ? user.campus?.name : user.campus || '—'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#94A3B8]" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                  <line x1="16" x2="16" y1="2" y2="6" />
-                  <line x1="8" x2="8" y1="2" y2="6" />
-                  <line x1="3" x2="21" y1="10" y2="10" />
-                </svg>
-                <span>Joined {formatDate(user.joined || user.joinedAt || user.createdAt)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-                {/* Account data available from the admin API */}
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#161F32] border border-[#E2E8F0]/60 dark:border-[#24304A]">
-                    <p className="text-lg font-bold text-[#0B1220] dark:text-white">{user.listings ?? user.listingsCount ?? 0}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Products Listed</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#161F32] border border-[#E2E8F0]/60 dark:border-[#24304A]">
-                    <p className="text-lg font-bold text-[#0B1220] dark:text-white">{user.reportCount ?? '—'}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Reports</p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-fg">{product.title}</p>
+                  <p className="text-xs text-muted">{formatCurrency(product.price)} · {formatDate(product.createdAt)}</p>
                 </div>
-
-                {/* 3 Detail Info Rows */}
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div>
-                    <p className="font-bold text-[#0B1220] dark:text-white">{formatDate(user.joined || user.joinedAt || user.createdAt)}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Join Date</p>
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#0B1220] dark:text-white">{typeof user.campus === 'object' ? user.campus?.name : user.campus || '—'}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Campus</p>
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#0B1220] dark:text-white">{formatDate(user.lastLoginAt)}</p>
-                    <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Last Login</p>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold text-[#0B1220] dark:text-white">Quick Actions</h4>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={handleToggleSuspend}
-                      disabled={!canWrite}
-                      className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-medium transition shadow-xs disabled:cursor-not-allowed disabled:opacity-50 ${
-                        user.status === 'active'
-                          ? 'border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400'
-                          : 'border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                      }`}
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="4.93" x2="19.07" y1="4.93" y2="19.07" />
-                      </svg>
-                      <span>{user.status === 'active' ? 'Suspend User' : 'Activate User'}</span>
-                    </button>
-                    {canWrite && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const nextRole = user.role === 'support' ? 'user' : 'support'
-                          if (onRoleChange) {
-                            const result = await onRoleChange(user.id || user._id, nextRole)
-                            if (result?.success) setUser((prev) => ({ ...prev, role: nextRole }))
-                          }
-                        }}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 p-2.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition shadow-xs"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                          <circle cx="9" cy="7" r="4" />
-                          <line x1="19" x2="19" y1="8" y2="14" />
-                          <line x1="22" x2="16" y1="11" y2="11" />
-                        </svg>
-                        <span>{user.role === 'support' ? 'Remove Support' : 'Make Support'}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-            </div>
-          </div>
+                <StatusBadge status={product.status} />
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p role="alert" className="p-5 text-sm text-rose-600">{loadError || 'Unable to load user details.'}</p>
+          <p className="rounded-xl border border-dashed border-line p-4 text-center text-sm text-muted">No listings yet</p>
         )}
-      </aside>
-    </>
+      </Section>
+
+      {canWrite && (
+        <Section title="Account actions">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => onRequestAction(user, 'role')} className="btn btn-secondary">
+              <ShieldCheck className="h-4 w-4" /> {user.role === 'support' ? 'Remove support access' : 'Make support staff'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onRequestAction(user, 'status')}
+              className={user.status === 'suspended' ? 'btn btn-success' : 'btn btn-danger'}
+            >
+              {user.status === 'suspended' ? <UserCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+              {user.status === 'suspended' ? 'Reactivate account' : 'Suspend account'}
+            </button>
+          </div>
+        </Section>
+      )}
+    </div>
   )
 }
+
+const UserDetailsDrawer = ({ userId, version = 0, onClose, onRequestAction }) => (
+  <Drawer open={Boolean(userId)} onClose={onClose} title="User details" subtitle="Profile, activity and account controls">
+    {userId && <Body key={userId} userId={userId} version={version} onRequestAction={onRequestAction} />}
+  </Drawer>
+)
 
 export default memo(UserDetailsDrawer)

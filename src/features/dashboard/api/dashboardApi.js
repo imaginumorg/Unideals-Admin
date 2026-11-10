@@ -1,11 +1,9 @@
 import { createApiResponse, fetcher, requestBackend } from '../../../shared/lib/apiClient'
 
 export const dashboardApi = {
-  getDashboard: (range) =>
+  getDashboard: () =>
     fetcher(async () => {
-      const response = await requestBackend('/admin/dashboard', {
-        query: range ? { range } : undefined,
-      })
+      const response = await requestBackend('/admin/dashboard')
       return createApiResponse(response.data, response.message)
     }),
 }

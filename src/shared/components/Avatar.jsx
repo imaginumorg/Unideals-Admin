@@ -1,67 +1,48 @@
 import { memo, useState } from 'react'
+import { initialsOf } from '../lib/format'
 
 /**
- * Extracts a valid URL from different avatar formats:
- * - String URL
- * - Object { url: '...' }
- * - Nested object { avatar: { url: '...' } }
+ * Accepts a string URL, { url }, or { avatar: { url } }.
  */
-export const extractAvatarUrl = (avatarSource) => {
-  if (!avatarSource) return null
-  if (typeof avatarSource === 'string' && avatarSource.trim().length > 0) {
-    return avatarSource.trim()
-  }
-  if (typeof avatarSource === 'object') {
-    if (avatarSource.url && typeof avatarSource.url === 'string') {
-      return avatarSource.url.trim()
-    }
-    if (avatarSource.avatar) {
-      return extractAvatarUrl(avatarSource.avatar)
-    }
+// eslint-disable-next-line react-refresh/only-export-components
+export const extractAvatarUrl = (source) => {
+  if (!source) return null
+  if (typeof source === 'string') return source.trim() || null
+  if (typeof source === 'object') {
+    if (typeof source.url === 'string') return source.url.trim() || null
+    if (source.avatar) return extractAvatarUrl(source.avatar)
   }
   return null
 }
 
-const computeInitials = (name, fallback = 'AU') => {
-  if (!name || typeof name !== 'string') return fallback
-  const segments = name.trim().split(/\s+/).filter(Boolean)
-  if (segments.length === 0) return fallback
-  if (segments.length === 1) return segments[0].slice(0, 2).toUpperCase()
-  return (segments[0][0] + segments[segments.length - 1][0]).toUpperCase()
-}
+// Stable hue per name so the same person always gets the same color.
+const HUES = [
+  'from-[#4B45FF] to-[#7472F5]',
+  'from-[#0EA5E9] to-[#6366F1]',
+  'from-[#10B981] to-[#0EA5E9]',
+  'from-[#F59E0B] to-[#EF4444]',
+  'from-[#EC4899] to-[#8B5CF6]',
+  'from-[#8B5CF6] to-[#4B45FF]',
+]
+const hueFor = (name = '') => HUES[[...String(name)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % HUES.length]
 
-const Avatar = ({
-  src,
-  name,
-  initials,
-  gradient = 'from-[#3838EC] to-[#0F172A]',
-  className = 'h-10 w-10 text-xs',
-  ringClassName = 'ring-2 ring-[#E2E8F0]',
-  alt,
-}) => {
-  const [imageError, setImageError] = useState(false)
-  const avatarUrl = extractAvatarUrl(src)
-  const displayInitials = initials || computeInitials(name)
-  const canShowImage = Boolean(avatarUrl) && !imageError
+const Avatar = ({ src, name, initials, className = 'h-9 w-9 text-xs', ringClassName = '', alt }) => {
+  const [failedUrl, setFailedUrl] = useState(null)
+  const url = extractAvatarUrl(src)
+  const showImage = Boolean(url) && failedUrl !== url
 
   return (
-    <div
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold select-none transition-transform ${ringClassName} ${
-        !canShowImage ? `bg-gradient-to-br ${gradient} text-white` : 'bg-slate-200 dark:bg-slate-800'
-      } ${className}`}
+    <span
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white select-none ${
+        showImage ? 'bg-surface-3' : `bg-gradient-to-br ${hueFor(name)}`
+      } ${ringClassName} ${className}`}
     >
-      {canShowImage ? (
-        <img
-          src={avatarUrl}
-          alt={alt || name || 'Profile photo'}
-          onError={() => setImageError(true)}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
+      {showImage ? (
+        <img src={url} alt={alt || name || 'Avatar'} onError={() => setFailedUrl(url)} className="h-full w-full object-cover" loading="lazy" />
       ) : (
-        <span className="leading-none tracking-wider">{displayInitials}</span>
+        <span className="leading-none tracking-wide">{initials || initialsOf(name)}</span>
       )}
-    </div>
+    </span>
   )
 }
 

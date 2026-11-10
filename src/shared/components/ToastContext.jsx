@@ -1,26 +1,27 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
 
 const ToastContext = createContext(null)
 
-const toastStyles = {
-  success: 'border-[#BBF7D0] bg-[#F0FDF4] text-[#166534]',
-  error: 'border-[#FECACA] bg-[#FEF2F2] text-[#991B1B]',
-  info: 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1E40AF]',
+const VARIANTS = {
+  success: { icon: CheckCircle2, className: 'text-success' },
+  error: { icon: XCircle, className: 'text-danger' },
+  info: { icon: Info, className: 'text-info' },
 }
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([])
 
-  const removeToast = useCallback((toastId) => {
-    setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== toastId))
+  const removeToast = useCallback((id) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
 
   const showToast = useCallback(
-    ({ message, type = 'info', duration = 3200 }) => {
-      const toastId = `${Date.now()}-${Math.random()}`
-
-      setToasts((currentToasts) => [...currentToasts, { id: toastId, message, type }])
-      window.setTimeout(() => removeToast(toastId), duration)
+    ({ message, type = 'info', duration = 3600 }) => {
+      if (!message) return
+      const id = `${Date.now()}-${Math.random()}`
+      setToasts((current) => [...current.slice(-3), { id, message, type }])
+      window.setTimeout(() => removeToast(id), duration)
     },
     [removeToast],
   )
@@ -30,17 +31,20 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed right-4 top-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${toastStyles[toast.type] || toastStyles.info}`}>
-            <div className="flex items-start justify-between gap-3">
-              <p>{toast.message}</p>
-              <button type="button" onClick={() => removeToast(toast.id)} className="text-current opacity-60 transition hover:opacity-100">
-                x
+      <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-[80] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2">
+        {toasts.map((toast) => {
+          const variant = VARIANTS[toast.type] || VARIANTS.info
+          const Icon = variant.icon
+          return (
+            <div key={toast.id} className="pop animate-pop-in pointer-events-auto flex items-start gap-3 px-4 py-3">
+              <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${variant.className}`} />
+              <p className="min-w-0 flex-1 text-sm font-medium text-fg">{toast.message}</p>
+              <button type="button" aria-label="Dismiss" onClick={() => removeToast(toast.id)} className="text-subtle transition hover:text-fg">
+                <X className="h-4 w-4" />
               </button>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </ToastContext.Provider>
   )

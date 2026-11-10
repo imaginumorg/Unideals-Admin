@@ -1,114 +1,63 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-export const THEMES = [
-  {
-    id: 'light',
-    name: 'Light',
-    subtitle: 'GitHub Light',
-    dotColor: '#3B82F6',
-    icon: 'sun',
-    isDark: false,
-  },
-  {
-    id: 'dark-plus',
-    name: 'Dark+',
-    subtitle: 'VSCode Dark+',
-    dotColor: '#3B82F6',
-    icon: 'moon',
-    isDark: true,
-  },
-  {
-    id: 'night-owl',
-    name: 'Night Owl',
-    subtitle: 'Deep navy',
-    dotColor: '#06B6D4',
-    icon: 'waves',
-    isDark: true,
-  },
-  {
-    id: 'dracula',
-    name: 'Dracula',
-    subtitle: 'Plum pop',
-    dotColor: '#A855F7',
-    icon: 'crown',
-    isDark: true,
-  },
-  {
-    id: 'monokai',
-    name: 'Monokai',
-    subtitle: 'Warm amber',
-    dotColor: '#FBBF24',
-    icon: 'zap',
-    isDark: true,
-  },
-  {
-    id: 'one-dark',
-    name: 'One Dark',
-    subtitle: 'Atom slate',
-    dotColor: '#60A5FA',
-    icon: 'atom',
-    isDark: true,
-  },
-]
+// Dark is the primary theme. "system" follows the OS preference.
+const THEME_OPTIONS = ['dark', 'light', 'system']
 
 const STORAGE_KEY = 'campus_mart_admin_theme'
-const DEFAULT_THEME_ID = 'dark-plus'
+const DEFAULT_THEME = 'dark'
+
+const readStoredTheme = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    // Older builds stored editor-style theme ids ("dark-plus", "dracula"...).
+    if (saved === 'light' || saved === 'system') return saved
+  } catch {
+    // storage unavailable
+  }
+  return DEFAULT_THEME
+}
+
+const systemPrefersLight = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches
 
 const ThemeContext = createContext(null)
 
 export const ThemeProvider = ({ children }) => {
-  const [currentThemeId, setCurrentThemeId] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved && THEMES.some((t) => t.id === saved)) {
-        return saved
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_THEME_ID
-  })
+  const [preference, setPreference] = useState(readStoredTheme)
+  const [systemLight, setSystemLight] = useState(systemPrefersLight)
 
   useEffect(() => {
-    const activeTheme = THEMES.find((t) => t.id === currentThemeId) || THEMES[1]
+    const media = window.matchMedia?.('(prefers-color-scheme: light)')
+    if (!media) return undefined
+    const onChange = (event) => setSystemLight(event.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  const resolved = preference === 'system' ? (systemLight ? 'light' : 'dark') : preference
+
+  useEffect(() => {
     const root = document.documentElement
-
-    root.setAttribute('data-theme', activeTheme.id)
-    if (activeTheme.isDark) {
-      root.classList.add('dark')
-      root.style.colorScheme = 'dark'
-    } else {
-      root.classList.remove('dark')
-      root.style.colorScheme = 'light'
-    }
-
+    root.setAttribute('data-theme', resolved)
+    root.classList.toggle('dark', resolved === 'dark')
     try {
-      localStorage.setItem(STORAGE_KEY, activeTheme.id)
+      localStorage.setItem(STORAGE_KEY, preference)
     } catch {
-      // ignore
+      // storage unavailable
     }
-  }, [currentThemeId])
+  }, [preference, resolved])
 
-  const setTheme = (themeId) => {
-    if (THEMES.some((t) => t.id === themeId)) {
-      setCurrentThemeId(themeId)
-    }
-  }
+  const setTheme = useCallback((next) => {
+    if (THEME_OPTIONS.includes(next)) setPreference(next)
+  }, [])
 
-  const activeTheme = useMemo(
-    () => THEMES.find((t) => t.id === currentThemeId) || THEMES[1],
-    [currentThemeId],
-  )
+  const toggleTheme = useCallback(() => {
+    setPreference(resolved === 'dark' ? 'light' : 'dark')
+  }, [resolved])
 
   const value = useMemo(
-    () => ({
-      theme: activeTheme,
-      themeId: currentThemeId,
-      setTheme,
-      themes: THEMES,
-      isDark: activeTheme.isDark,
-    }),
-    [activeTheme, currentThemeId],
+    () => ({ preference, theme: resolved, isDark: resolved === 'dark', setTheme, toggleTheme }),
+    [preference, resolved, setTheme, toggleTheme],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
@@ -117,8 +66,6 @@ export const ThemeProvider = ({ children }) => {
 // eslint-disable-next-line react-refresh/only-export-components
 export const useTheme = () => {
   const context = useContext(ThemeContext)
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
+  if (!context) throw new Error('useTheme must be used within a ThemeProvider')
   return context
 }
