@@ -16,11 +16,11 @@ export const usersApi = {
       return createApiResponse(response.data, response.message)
     }),
 
-  updateUserStatus: (userId, status) =>
+  updateUserStatus: (userId, status, reason = '') =>
     fetcher(async () => {
       const response = await requestBackend(`/admin/users/${userId}/status`, {
         method: 'PATCH',
-        body: { status },
+        body: { status, ...(reason ? { reason } : {}) },
       })
       return createApiResponse(response.data, response.message)
     }),
@@ -31,6 +31,12 @@ export const usersApi = {
         method: 'PATCH',
         body: { role },
       })
+      return createApiResponse(response.data, response.message)
+    }),
+
+  bulkUpdateStatus: (ids, status, reason = '') =>
+    fetcher(async () => {
+      const response = await requestBackend('/admin/users/bulk', { method: 'POST', body: { ids, status, reason } })
       return createApiResponse(response.data, response.message)
     }),
 

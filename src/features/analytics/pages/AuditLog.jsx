@@ -1,6 +1,7 @@
 import { Fragment, memo, useCallback, useState } from 'react'
 import { ChevronDown, Download, RotateCcw, ScrollText, UserRound, X } from 'lucide-react'
 import { auditLogApi } from '../api/auditLogApi'
+import { SavedViews } from '../../../shared/components/listTools'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useListFilters } from '../../../shared/hooks/useListFilters'
 import { useAuth } from '../../auth/context/AuthContext'
@@ -115,6 +116,7 @@ const AuditLog = () => {
             </label>
           </div>
           <div className="flex gap-2">
+            <SavedViews page="audit-log" />
             <button
               type="button"
               onClick={() => setFilter('actor_id', onlyMine ? '' : admin?.id)}

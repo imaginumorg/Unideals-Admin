@@ -43,6 +43,10 @@
   --color-violet-soft: var(--c-violet-soft);
   --color-pink: var(--c-pink);
   --color-pink-soft: var(--c-pink-soft);
+
+  /* Chart marks (validated per theme with the dataviz palette checker). */
+  --color-chart-1: var(--c-chart-1);
+  --color-chart-error: var(--c-chart-error);
 }
 
 :root {
@@ -77,6 +81,8 @@
   --c-violet-soft: rgba(192, 132, 252, 0.14);
   --c-pink: #f472b6;
   --c-pink-soft: rgba(244, 114, 182, 0.14);
+  --c-chart-1: #6e69ff;
+  --c-chart-error: #ef4444;
 
   --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-pop: 0 18px 48px rgba(0, 0, 0, 0.55);
@@ -114,6 +120,8 @@
   --c-violet-soft: rgba(168, 85, 247, 0.1);
   --c-pink: #be185d;
   --c-pink-soft: rgba(236, 72, 153, 0.1);
+  --c-chart-1: #393af2;
+  --c-chart-error: #dc2626;
 
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-pop: 0 16px 40px rgba(16, 24, 40, 0.14);

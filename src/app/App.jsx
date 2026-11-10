@@ -15,6 +15,8 @@ const ModerationQueue = lazy(() => import('../features/reports/pages/ModerationQ
 const AuditLog = lazy(() => import('../features/analytics/pages/AuditLog'))
 const Notification = lazy(() => import('../features/notifications/pages/Notification'))
 const Profile = lazy(() => import('../features/profile/pages/Profile'))
+const Jobs = lazy(() => import('../features/system/pages/Jobs'))
+const ServiceStatus = lazy(() => import('../features/system/pages/ServiceStatus'))
 
 // Old paths kept working so bookmarks don't break.
 const LEGACY_REDIRECTS = {
@@ -47,6 +49,8 @@ const App = () => {
           <Route path="/push-notifications" element={<Notification />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/system/jobs" element={<Jobs />} />
+          <Route path="/system/status" element={<ServiceStatus />} />
           {Object.entries(LEGACY_REDIRECTS).map(([from, to]) => (
             <Route key={from} path={from} element={<Navigate to={to} replace />} />
           ))}

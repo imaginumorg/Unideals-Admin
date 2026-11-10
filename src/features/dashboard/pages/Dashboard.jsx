@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   Ban,
+  Cpu,
+  EyeOff,
   Building2,
   FileText,
   Handshake,
@@ -62,6 +64,22 @@ const Dashboard = () => {
       icon: UserCog,
       tone: 'pink',
       hint: 'Girls Corner access needs approval',
+    },
+    {
+      label: 'Auto-hidden listings',
+      count: stats.autoHiddenListings,
+      to: '/products?status=review',
+      icon: EyeOff,
+      tone: 'warning',
+      hint: 'Hidden by 5+ reports, awaiting review',
+    },
+    {
+      label: 'Failing background jobs',
+      count: stats.failingJobs,
+      to: '/system/jobs',
+      icon: Cpu,
+      tone: 'danger',
+      hint: 'Latest scheduled run failed',
     },
     {
       label: 'Suspended accounts',

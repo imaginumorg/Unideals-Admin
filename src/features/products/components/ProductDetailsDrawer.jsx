@@ -9,6 +9,7 @@ import { REPORT_REASON_LABELS } from '../../../shared/constants/constants'
 import {
   Badge,
   ConfirmDialog,
+  InlineAlert,
   DetailList,
   Drawer,
   ErrorState,
@@ -56,7 +57,7 @@ const Body = ({ productId, onChanged, onClose }) => {
     setWorking(true)
     const response =
       pending === 'delete'
-        ? await productsApi.hardDeleteProduct(product.id)
+        ? await productsApi.hardDeleteProduct(product.id, reason)
         : await productsApi.updateProductStatus(product.id, pending, reason)
     setWorking(false)
     if (!response.success) {
@@ -99,6 +100,7 @@ const Body = ({ productId, onChanged, onClose }) => {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={product.status} />
           {product.is_deleted && <Badge tone="danger">Deleted</Badge>}
+          {product.auto_hidden_at && <Badge tone="warning">Auto-hidden</Badge>}
           <Badge>{titleCase(product.category)}</Badge>
           {product.condition && <Badge>{titleCase(product.condition)}</Badge>}
         </div>
@@ -110,6 +112,13 @@ const Body = ({ productId, onChanged, onClose }) => {
         </p>
         {product.description && <p className="mt-3 text-sm leading-relaxed whitespace-pre-line text-fg-2">{product.description}</p>}
       </div>
+
+      {product.auto_hidden_at && (
+        <InlineAlert tone="warning">
+          Hidden automatically {formatRelative(product.auto_hidden_at)} after {product.auto_hidden_report_count || 5} reports. The seller
+          can't relist it until you decide: make it live if the reports are unfounded, or block / unlist it.
+        </InlineAlert>
+      )}
 
       <Section title="Details">
         <DetailList
@@ -182,8 +191,8 @@ const Body = ({ productId, onChanged, onClose }) => {
         description={pending ? ACTIONS[pending].text : ''}
         confirmLabel={pending ? ACTIONS[pending].label : ''}
       >
-        {pending && pending !== 'delete' && (
-          <Field label="Reason (saved to the audit log)" hint="Optional">
+        {pending && (
+          <Field label="Reason" hint="Optional. Saved to the audit log and included in the seller's notification.">
             <textarea className="input" rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
           </Field>
         )}

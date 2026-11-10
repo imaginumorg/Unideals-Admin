@@ -2,10 +2,10 @@ import { createApiResponse, fetcher, requestBackend } from '../../../shared/lib/
 
 // Backend product statuses, used as-is: draft | listed | sold | unlisted | blocked
 export const productsApi = {
-  getProducts: ({ search = '', category = '', campus = '', status = '', page = 1, limit = 12 } = {}) =>
+  getProducts: ({ search = '', category = '', campus = '', status = '', flag = '', page = 1, limit = 12 } = {}) =>
     fetcher(async () => {
       const response = await requestBackend('/admin/products', {
-        query: { search: search.trim(), category, campus, status, page, limit },
+        query: { search: search.trim(), category, campus, status, flag, page, limit },
       })
       return createApiResponse(
         { items: response.data || [], statusCounts: response.statusCounts || null },
@@ -36,13 +36,23 @@ export const productsApi = {
       return createApiResponse(response.data, response.message)
     }),
 
-  hardDeleteProduct: (productId) =>
+  hardDeleteProduct: (productId, reason = '') =>
     fetcher(async () => {
       if (!productId) throw new Error('Product ID is required')
-      const response = await requestBackend(`/admin/products/${productId}`, { method: 'DELETE' })
+      const response = await requestBackend(`/admin/products/${productId}`, {
+        method: 'DELETE',
+        ...(reason ? { body: { reason } } : {}),
+      })
       return createApiResponse(response.data, response.message)
     }),
 }
+
+// action: 'blocked' | 'unlisted' | 'listed' | 'delete'
+export const bulkProducts = (ids, action, reason = '') =>
+  fetcher(async () => {
+    const response = await requestBackend('/admin/products/bulk', { method: 'POST', body: { ids, action, reason } })
+    return createApiResponse(response.data, response.message)
+  })
 
 export const PRODUCT_CATEGORY_OPTIONS = [
   'electronics',

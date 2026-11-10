@@ -4,6 +4,14 @@ export const moderationApi = {
   getQueue: (params = {}) =>
     fetcher(() => requestBackend('/admin/moderation/queue', { query: params })),
 
+  // Individual reports (with chat evidence) for one reported item.
+  getTargetReports: ({ targetId, targetModel, includeClosed = false }) =>
+    fetcher(() =>
+      requestBackend('/admin/moderation/reports', {
+        query: { targetId, targetModel, includeClosed: includeClosed ? 'true' : undefined },
+      }),
+    ),
+
   dismissReports: ({ targetId, targetModel }) =>
     fetcher(() =>
       requestBackend('/admin/moderation/dismiss', {

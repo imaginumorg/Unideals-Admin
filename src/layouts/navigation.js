@@ -1,6 +1,8 @@
 import {
   Bell,
   Building2,
+  Cpu,
+  HeartPulse,
   LayoutDashboard,
   Package,
   ScrollText,
@@ -24,7 +26,7 @@ export const NAV_GROUPS = [
     label: 'Marketplace',
     items: [
       { label: 'Users', path: '/users', icon: Users, keywords: 'students accounts members' },
-      { label: 'Listings', path: '/products', icon: Package, keywords: 'products items inventory' },
+      { label: 'Listings', path: '/products', icon: Package, badgeKey: 'autoHiddenListings', keywords: 'products items inventory review hidden' },
       { label: 'Orders', path: '/orders', icon: ShoppingBag, keywords: 'deals transactions payments' },
       { label: 'Campuses', path: '/campuses', icon: Building2, keywords: 'colleges universities' },
     ],
@@ -42,7 +44,11 @@ export const NAV_GROUPS = [
   },
   {
     label: 'System',
-    items: [{ label: 'Audit Log', path: '/audit-log', icon: ScrollText, keywords: 'history actions activity' }],
+    items: [
+      { label: 'Audit Log', path: '/audit-log', icon: ScrollText, keywords: 'history actions activity' },
+      { label: 'Service Status', path: '/system/status', icon: HeartPulse, keywords: 'health uptime api status outage database' },
+      { label: 'Background Jobs', path: '/system/jobs', icon: Cpu, badgeKey: 'failingJobs', keywords: 'cron scheduler health system' },
+    ],
   },
 ]
 

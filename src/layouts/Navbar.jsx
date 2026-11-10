@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Inbox, Menu, Search, ShieldAlert, UserCog } from 'lucide-react'
+import { Cpu, EyeOff, Inbox, Menu, Search, ShieldAlert, UserCog } from 'lucide-react'
 import ProfileMenu from './ProfileMenu'
 import CommandPalette from './CommandPalette'
 import { findNavItem, NAV_GROUPS } from './navigation'
@@ -27,6 +27,8 @@ const AttentionInbox = () => {
   const items = [
     { label: 'Pending reports', count: counts.pendingReports, to: '/moderation', icon: ShieldAlert },
     { label: 'Gender change requests', count: counts.pendingGenderRequests, to: '/gender-requests', icon: UserCog },
+    { label: 'Listings auto-hidden by reports', count: counts.autoHiddenListings, to: '/products?status=review', icon: EyeOff },
+    { label: 'Failing background jobs', count: counts.failingJobs, to: '/system/jobs', icon: Cpu },
   ]
 
   return (

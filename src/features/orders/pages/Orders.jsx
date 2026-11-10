@@ -4,6 +4,7 @@ import { ordersApi } from '../api/ordersApi'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useCampusOptions, useListFilters, useSearchFilter } from '../../../shared/hooks/useListFilters'
 import OrderDetailsDrawer from '../components/OrderDetailsDrawer'
+import { SavedViews } from '../../../shared/components/listTools'
 import Avatar from '../../../shared/components/Avatar'
 import {
   Badge,
@@ -120,6 +121,9 @@ const Orders = () => {
                 <RotateCcw className="h-4 w-4" /> Reset
               </button>
             )}
+            <div className="sm:ml-auto">
+              <SavedViews page="orders" />
+            </div>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/context/AuthContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useCampusOptions, useListFilters, useSearchFilter } from '../../../shared/hooks/useListFilters'
 import UserDetailsDrawer from '../components/UserDetailsDrawer'
+import { BulkBar, BulkConfirmDialog, Checkbox, SavedViews, useSelection } from '../../../shared/components/listTools'
 import Avatar from '../../../shared/components/Avatar'
 import {
   Badge,
@@ -88,6 +89,21 @@ const Users = () => {
   const { data, pagination, loading, refreshing, error, refetch } = useFetch(loadUsers)
   const { data: stats, refetch: refetchStats } = useFetch(usersApi.getUserStats)
   const users = data || []
+  const selection = useSelection(users)
+  const [bulkStatus, setBulkStatus] = useState(null)
+
+  const runBulk = async (reason) => {
+    const response = await usersApi.bulkUpdateStatus(selection.selectedIds, bulkStatus, reason)
+    if (!response.success) {
+      showToast({ type: 'error', message: response.message })
+      return null
+    }
+    showToast({ type: response.data.failed ? 'info' : 'success', message: response.message })
+    selection.clear()
+    refetch()
+    refetchStats()
+    return response.data
+  }
 
   const runConfirmed = async () => {
     if (!confirm) return
@@ -178,6 +194,7 @@ const Users = () => {
                 <RotateCcw className="h-4 w-4" /> Reset
               </button>
             )}
+            <SavedViews page="users" />
           </div>
         </div>
 
@@ -192,6 +209,16 @@ const Users = () => {
             <table className="table min-w-[860px]">
               <thead>
                 <tr>
+                  {canWrite && (
+                    <th className="w-10">
+                      <Checkbox
+                        checked={selection.allSelected}
+                        indeterminate={selection.someSelected}
+                        onChange={selection.toggleAll}
+                        label="Select all users on this page"
+                      />
+                    </th>
+                  )}
                   <th>User</th>
                   <th>Campus</th>
                   <th>Status</th>
@@ -203,7 +230,16 @@ const Users = () => {
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className="cursor-pointer">
+                  <tr
+                    key={user.id}
+                    onClick={() => setSelectedUserId(user.id)}
+                    className={`cursor-pointer ${selection.selected.has(user.id) ? 'bg-brand-soft' : ''}`}
+                  >
+                    {canWrite && (
+                      <td onClick={(event) => event.stopPropagation()}>
+                        <Checkbox checked={selection.selected.has(user.id)} onChange={() => selection.toggle(user.id)} label={`Select ${user.name}`} />
+                      </td>
+                    )}
                     <td>
                       <div className="flex items-center gap-3">
                         <Avatar src={user.avatar} name={user.name} />
@@ -246,6 +282,30 @@ const Users = () => {
         version={drawerVersion}
         onClose={() => setSelectedUserId(null)}
         onRequestAction={(user, kind) => setConfirm({ user, kind })}
+      />
+
+      <BulkBar
+        count={selection.count}
+        noun="user"
+        actions={[
+          { key: 'suspended', label: 'Suspend', icon: Ban, tone: 'danger' },
+          { key: 'active', label: 'Reactivate', icon: UserCheck, tone: 'secondary' },
+        ]}
+        onAction={setBulkStatus}
+        onClear={selection.clear}
+      />
+      <BulkConfirmDialog
+        open={Boolean(bulkStatus)}
+        title={bulkStatus === 'suspended' ? 'Suspend selected users?' : 'Reactivate selected users?'}
+        description={
+          bulkStatus === 'suspended'
+            ? `${selection.count} selected. They are signed out everywhere and their live listings are unlisted. Your own account is skipped.`
+            : `${selection.count} selected. They can sign in and trade again.`
+        }
+        confirmLabel={bulkStatus === 'suspended' ? `Suspend ${selection.count}` : `Reactivate ${selection.count}`}
+        tone={bulkStatus === 'suspended' ? 'danger' : 'primary'}
+        onClose={() => setBulkStatus(null)}
+        onConfirm={runBulk}
       />
 
       <ConfirmDialog

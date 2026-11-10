@@ -11,13 +11,13 @@ const AttentionContext = createContext({ counts: {}, refresh: () => {} })
 const POLL_MS = 60_000
 
 export const AttentionProvider = ({ children }) => {
-  const [counts, setCounts] = useState({ pendingReports: 0, pendingGenderRequests: 0 })
+  const [counts, setCounts] = useState({ pendingReports: 0, pendingGenderRequests: 0, autoHiddenListings: 0, failingJobs: 0 })
 
   const refresh = useCallback(async () => {
     const response = await dashboardApi.getDashboard()
     if (response.success && response.data?.stats) {
-      const { pendingReports = 0, pendingGenderRequests = 0 } = response.data.stats
-      setCounts({ pendingReports, pendingGenderRequests })
+      const { pendingReports = 0, pendingGenderRequests = 0, autoHiddenListings = 0, failingJobs = 0 } = response.data.stats
+      setCounts({ pendingReports, pendingGenderRequests, autoHiddenListings, failingJobs })
     }
   }, [])
 
@@ -33,7 +33,11 @@ export const AttentionProvider = ({ children }) => {
   }, [refresh])
 
   const value = useMemo(
-    () => ({ counts, total: counts.pendingReports + counts.pendingGenderRequests, refresh }),
+    () => ({
+      counts,
+      total: counts.pendingReports + counts.pendingGenderRequests + counts.autoHiddenListings + counts.failingJobs,
+      refresh,
+    }),
     [counts, refresh],
   )
   return <AttentionContext.Provider value={value}>{children}</AttentionContext.Provider>

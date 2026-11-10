@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react'
-import { Ban, CheckCircle2, EyeOff, Flag, ImageOff, LifeBuoy, Mail, Package, ShieldAlert, ShieldCheck, Trash2, User, UserCheck, XCircle } from 'lucide-react'
+import { Ban, FileSearch, CheckCircle2, EyeOff, Flag, ImageOff, LifeBuoy, Mail, Package, ShieldAlert, ShieldCheck, Trash2, User, UserCheck, XCircle } from 'lucide-react'
 import { moderationApi } from '../api/moderationApi'
 import { productsApi } from '../../products/api/productsApi'
 import { usersApi } from '../../users/api/usersApi'
@@ -10,6 +10,7 @@ import { useFetch } from '../../../shared/hooks/useFetch'
 import { useListFilters } from '../../../shared/hooks/useListFilters'
 import { REPORT_REASON_LABELS } from '../../../shared/constants/constants'
 import Avatar from '../../../shared/components/Avatar'
+import ReportEvidenceDrawer from '../components/ReportEvidenceDrawer'
 import {
   Badge,
   Card,
@@ -36,12 +37,12 @@ const TYPE_META = {
 
 // Every way an item can leave the queue, with copy for the confirm dialog.
 const ACTIONS = {
-  resolve: { title: 'Mark as resolved?', text: 'All open reports on this item are closed as “action taken”.', label: 'Resolve', tone: 'primary', note: true },
-  dismiss: { title: 'Dismiss these reports?', text: 'Reports are closed with no action. The item stays as it is.', label: 'Dismiss', tone: 'primary' },
-  block: { title: 'Block this listing?', text: 'Hidden from the marketplace; the seller cannot relist it.', label: 'Block listing', tone: 'danger' },
-  unlist: { title: 'Unlist this listing?', text: 'Hidden from the marketplace; the seller can relist it after fixing it.', label: 'Unlist', tone: 'primary' },
-  delete: { title: 'Delete this listing permanently?', text: 'The listing and its images are removed for good. This cannot be undone.', label: 'Delete', tone: 'danger' },
-  suspend: { title: 'Suspend this user?', text: 'They are signed out everywhere and cannot sign in until reactivated.', label: 'Suspend', tone: 'danger' },
+  resolve: { title: 'Mark as resolved?', text: 'All open reports are closed as “action taken”, and every reporter is told action was taken.', label: 'Resolve', tone: 'primary', note: 'Note for the audit log' },
+  dismiss: { title: 'Dismiss these reports?', text: "Reports are closed with no action and reporters are told no violation was found. An auto-hidden listing goes live again and its seller is told.", label: 'Dismiss', tone: 'primary' },
+  block: { title: 'Block this listing?', text: "Removed from the marketplace for good. The seller is notified (with your reason) and reporters are told action was taken.", label: 'Block listing', tone: 'danger', note: 'Reason (shown to the seller)' },
+  unlist: { title: 'Unlist this listing?', text: 'Hidden until the seller fixes and relists it. The seller is notified with your reason; reporters are told action was taken.', label: 'Unlist', tone: 'primary', note: 'Reason (shown to the seller)' },
+  delete: { title: 'Delete this listing permanently?', text: 'Cannot be undone. The seller and reporters are notified.', label: 'Delete', tone: 'danger', note: 'Reason (shown to the seller)' },
+  suspend: { title: 'Suspend this user?', text: 'They are signed out everywhere and cannot sign in until reactivated. Reporters are told action was taken.', label: 'Suspend', tone: 'danger', note: 'Reason (audit log)' },
   activate: { title: 'Reactivate this user?', text: 'They can sign in and trade again.', label: 'Reactivate', tone: 'primary' },
 }
 
@@ -126,14 +127,19 @@ const ModerationQueue = () => {
     } else if (action === 'dismiss') {
       response = await moderationApi.dismissReports({ targetId: item.targetId, targetModel: item.targetModel })
     } else {
-      if (action === 'block') response = await productsApi.updateProductStatus(item.targetId, 'blocked', 'Moderation queue')
-      else if (action === 'unlist') response = await productsApi.updateProductStatus(item.targetId, 'unlisted', 'Moderation queue')
-      else if (action === 'delete') response = await productsApi.hardDeleteProduct(item.targetId)
-      else if (action === 'suspend') response = await usersApi.updateUserStatus(item.targetId, 'suspended')
+      const reason = note.trim()
+      if (action === 'block') response = await productsApi.updateProductStatus(item.targetId, 'blocked', reason)
+      else if (action === 'unlist') response = await productsApi.updateProductStatus(item.targetId, 'unlisted', reason)
+      else if (action === 'delete') response = await productsApi.hardDeleteProduct(item.targetId, reason)
+      else if (action === 'suspend') response = await usersApi.updateUserStatus(item.targetId, 'suspended', reason)
       else if (action === 'activate') response = await usersApi.updateUserStatus(item.targetId, 'active')
       // Enforcement closes the reports too, so the item leaves the queue.
       if (response?.success) {
-        await moderationApi.resolveReports({ targetId: item.targetId, targetModel: item.targetModel, adminNote: `Enforced: ${action}` })
+        await moderationApi.resolveReports({
+          targetId: item.targetId,
+          targetModel: item.targetModel,
+          adminNote: reason ? `Enforced (${action}): ${reason}` : `Enforced: ${action}`,
+        })
       }
     }
     setWorking(false)
@@ -141,7 +147,11 @@ const ModerationQueue = () => {
       showToast({ type: 'error', message: response?.message || 'Action failed' })
       return
     }
-    showToast({ type: 'success', message: `${ACTIONS[action].label} — done` })
+    const notified = response.data?.notifiedReporters
+    showToast({
+      type: 'success',
+      message: notified ? `${ACTIONS[action].label} — done. ${notified} reporter${notified === 1 ? '' : 's'} notified.` : `${ACTIONS[action].label} — done`,
+    })
     setPending(null)
     setNote('')
     refetch()
@@ -149,6 +159,7 @@ const ModerationQueue = () => {
   }
 
   const open = (item, action) => setPending({ item, action })
+  const [evidenceItem, setEvidenceItem] = useState(null)
 
   return (
     <div>
@@ -248,6 +259,10 @@ const ModerationQueue = () => {
                         <Mail className="h-3.5 w-3.5" /> Reply
                       </a>
                     )}
+                    <button type="button" onClick={() => setEvidenceItem(item)} className="btn btn-secondary btn-sm">
+                      <FileSearch className="h-3.5 w-3.5" /> Evidence
+                      {item.hasChat && <span className="rounded bg-brand-soft px-1 text-[10px] text-brand-fg">chat</span>}
+                    </button>
                     <div className="hidden basis-full lg:block" />
                     <button type="button" onClick={() => open(item, 'resolve')} className="btn btn-primary btn-sm">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
@@ -268,6 +283,8 @@ const ModerationQueue = () => {
         </div>
       )}
 
+      <ReportEvidenceDrawer item={evidenceItem} onClose={() => setEvidenceItem(null)} />
+
       <ConfirmDialog
         open={Boolean(pending)}
         onClose={() => setPending(null)}
@@ -279,7 +296,7 @@ const ModerationQueue = () => {
         confirmLabel={pending ? ACTIONS[pending.action].label : ''}
       >
         {pending && ACTIONS[pending.action].note && (
-          <Field label="Note for the audit log" hint="Optional">
+          <Field label={ACTIONS[pending.action].note} hint="Optional">
             <textarea className="input" rows={3} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="What did you do?" />
           </Field>
         )}

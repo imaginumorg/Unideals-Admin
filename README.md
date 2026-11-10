@@ -17,6 +17,8 @@ Navigation is grouped by job:
 | | `/gender-requests` | Approve or reject Girls Corner gender changes |
 | Engagement | `/push-notifications` | Compose with live preview and a confirm step, history with delivery stats, scheduled sends |
 | System | `/audit-log` | Every staff action, filterable by action, target, role, person and date range |
+| | `/system/status` | Live health of the API, database, realtime, jobs and external providers, plus API traffic |
+| | `/system/jobs` | Health of the 7 scheduled background jobs, run history, and manual runs |
 | Account | `/profile` | Your details, access level, activity summary, password change, appearance |
 
 Other features:
@@ -24,6 +26,7 @@ Other features:
 - The inbox icon in the header shows pending reports and gender requests. It checks again every minute.
 - List filters live in the URL, so a filtered view can be bookmarked or shared (for example `/users?status=suspended`).
 - Each list can export its current page to CSV.
+- Users and Listings support bulk actions (up to 100 rows). Users, Listings, Orders and Audit log support saved views per staff member.
 - Access tokens refresh automatically. If a refresh fails, you are signed out with a notice.
 
 Roles: **Super Admin** (`admin`) can do everything. **Support** (`support`) can view everything and resolve or dismiss reports.
