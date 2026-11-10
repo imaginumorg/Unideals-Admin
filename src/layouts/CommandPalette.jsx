@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { CornerDownLeft, Moon, Package, Search, ShoppingBag, Sun, Users } from 'lucide-react'
-import { ALL_NAV_ITEMS } from './navigation'
+import { ALL_NAV_ITEMS, isNavItemVisible } from './navigation'
+import { useAuth } from '../features/auth/context/AuthContext'
 import { useTheme } from '../shared/context/ThemeContext'
 import { cx, usePresence } from '../shared/components/ui'
 
@@ -12,6 +13,7 @@ import { cx, usePresence } from '../shared/components/ui'
 const CommandPalette = ({ open, onClose }) => {
   const navigate = useNavigate()
   const { isDark, toggleTheme } = useTheme()
+  const { can, isAdmin } = useAuth()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const { mounted, state } = usePresence(open, 150)
@@ -26,7 +28,7 @@ const CommandPalette = ({ open, onClose }) => {
   const commands = useMemo(() => {
     const q = query.trim().toLowerCase()
     const pages = ALL_NAV_ITEMS.filter(
-      (item) => !q || item.label.toLowerCase().includes(q) || item.keywords?.includes(q),
+      (item) => isNavItemVisible(item, { can, isAdmin }) && (!q || item.label.toLowerCase().includes(q) || item.keywords?.includes(q)),
     ).map((item) => ({
       id: item.path,
       group: 'Go to',
@@ -37,10 +39,10 @@ const CommandPalette = ({ open, onClose }) => {
 
     const searches = q
       ? [
-          { id: 's-users', label: `Search users for “${query.trim()}”`, icon: Users, path: '/users' },
-          { id: 's-products', label: `Search listings for “${query.trim()}”`, icon: Package, path: '/products' },
-          { id: 's-orders', label: `Search orders for “${query.trim()}”`, icon: ShoppingBag, path: '/orders' },
-        ].map((entry) => ({
+          { id: 's-users', label: `Search users for “${query.trim()}”`, icon: Users, path: '/users', feature: 'users' },
+          { id: 's-products', label: `Search listings for “${query.trim()}”`, icon: Package, path: '/products', feature: 'listings' },
+          { id: 's-orders', label: `Search orders for “${query.trim()}”`, icon: ShoppingBag, path: '/orders', feature: 'orders' },
+        ].filter((entry) => can(entry.feature)).map((entry) => ({
           ...entry,
           group: 'Search',
           run: () => navigate(`${entry.path}?search=${encodeURIComponent(query.trim())}`),
@@ -58,7 +60,7 @@ const CommandPalette = ({ open, onClose }) => {
     ].filter((action) => !q || action.label.toLowerCase().includes(q) || 'theme'.includes(q))
 
     return [...searches, ...pages, ...actions]
-  }, [query, navigate, isDark, toggleTheme])
+  }, [query, navigate, isDark, toggleTheme, can, isAdmin])
 
   const close = () => {
     setQuery('')

@@ -162,7 +162,8 @@ const RunHistory = ({ jobKey }) => {
 }
 
 const Jobs = () => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('jobs', 'manage')
   const { showToast } = useToast()
   const { refresh: refreshAttention } = useAttention()
   const { data, loading, refreshing, error, refetch } = useFetch(jobsApi.getJobs)

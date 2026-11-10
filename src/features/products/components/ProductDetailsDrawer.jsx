@@ -29,7 +29,8 @@ const ACTIONS = {
 }
 
 const Body = ({ productId, onChanged, onClose }) => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('listings', 'manage')
   const { showToast } = useToast()
   const [version, setVersion] = useState(0)
   const load = useCallback(() => productsApi.getProductDetails(productId), [productId, version]) // eslint-disable-line react-hooks/exhaustive-deps

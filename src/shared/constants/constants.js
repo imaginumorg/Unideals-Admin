@@ -49,6 +49,7 @@ export const REPORT_REASON_LABELS = {
 }
 
 export const AUDIT_ACTION_LABELS = {
+  'access.update': 'Changed support access',
   'user.suspend': 'Suspended user',
   'user.activate': 'Activated user',
   'user.status_change': 'Changed user status',
@@ -74,6 +75,7 @@ export const AUDIT_ACTION_LABELS = {
 
 // Tone used for the activity feed icon of each action.
 export const AUDIT_ACTION_TONES = {
+  'access.update': 'violet',
   'user.suspend': 'danger',
   'product.block': 'danger',
   'product.hard_delete': 'danger',
@@ -91,6 +93,6 @@ export const AUDIT_ACTION_TONES = {
   'admin.password_change': 'info',
 }
 
-export const AUDIT_TARGET_TYPES = ['user', 'product', 'order', 'campus', 'report']
+export const AUDIT_TARGET_TYPES = ['user', 'product', 'order', 'campus', 'report', 'settings']
 
 export const REPORT_THRESHOLD = 3

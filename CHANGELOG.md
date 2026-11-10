@@ -6,6 +6,63 @@ How to use the portal is covered in [ADMIN_PORTAL.md](ADMIN_PORTAL.md).
 
 ---
 
+## 7. Reports redesign, dark-mode contrast, support access control
+
+### Reports page
+- **Header:** icon tile, title and description, with the date range and chart toggle on the right.
+- **Type tabs:** All, Listings, Users and Help & support, each with an icon and a live count. Next to them, *N items waiting* with a clock icon.
+- **Cards:**
+  - a header strip with type, report count, priority and chat-evidence pills, and the timing (latest report • since) on the right;
+  - the body: image or avatar, a divider, then the title, subtitle, status pill, *Waiting to resolve* and reason chips;
+  - then a divider and a 2-column grid of equal-width actions: enforcement and Evidence first, Dismiss and Resolve last.
+  - Phones: the actions sit full width under the details.
+- Actions follow the viewer's permissions, and the page explains anything that's missing.
+- The mockup's *Schedule* button was left out, because there is no scheduling action for reports to connect it to.
+- `PageHeader` gained an opt-in `iconTile`, used only on Reports.
+
+### Dark-mode contrast
+Measured against `--c-surface` (`#111113`):
+- Tertiary text (`--c-subtle`): `#5d5d66` → `#7a7a84`, from 2.9:1 to 4.5:1. Used by timestamps, hints and chart axes.
+- Secondary text (`--c-muted`): `#8b8b94` → `#9898a1`, from 5.6:1 to 6.6:1.
+- Hairlines: `--c-line` `#232327` → `#2a2a30`, and `--c-line-strong` `#323238` → `#3a3a42`.
+- Status and brand soft tints are slightly stronger, so badges read at a glance.
+- Danger and success buttons now have a visible tinted border.
+- Light mode is unchanged.
+
+### Roles & Access (Super Admin)
+- **New page** at System → Roles & Access. For each section, Support can see it and/or change it. It includes "View only" and "Allow everything" shortcuts, reset to default, a live preview of what support will see, and a save bar listing unsaved changes.
+- **Enforced on the server:**
+  - New `AccessPolicy` model and `config/accessFeatures.js`, which holds the sections and defaults. The defaults equal the previous fixed rules.
+  - `services/access.service.js` keeps a 15-second cache and clears it immediately on save.
+  - New `requireAccess(section, level)` middleware.
+  - Every `/api/admin` route is now guarded by section instead of a fixed role list.
+  - Still fixed:
+    - user role changes stay Super Admin only;
+    - sign-in, profile, saved views and analytics stay open to all staff;
+    - the campus list stays readable by all staff, because other pages' filters use it.
+- **New endpoints:**
+  - `GET /api/admin/access`: everyone's own access; Super Admins also get the editable policy.
+  - `PUT /api/admin/access/support`: Super Admin only. Validated, and recorded in the audit log as `access.update` with the list of changes.
+  - `GET /api/admin/attention`: the badge counts, limited to sections the caller can see. It replaces using `/admin/dashboard` for badges.
+- **Audit log:** gained the `settings` target type.
+- **Frontend:**
+  - `useAuth().can(section, level)`;
+  - the sidebar, Ctrl+K palette and routes hide or block what a role can't open (no-access screen, or redirect to the first available page);
+  - every action button checks its own section.
+- **Tests:** `tests/access.integration.test.mjs` (8 tests, over HTTP against the real routes):
+  - defaults;
+  - enforcement after edits;
+  - the audit entry;
+  - attention scoping;
+  - Super Admin always allowed;
+  - validation;
+  - role changes stay Super Admin only.
+
+### Fixes
+- **Admin read limit raised** from 60 to 240 requests per minute per IP (`app.js`). Chart pages load several datasets each, and hitting the limit failed the session check and signed staff out. Sign-in attempts keep their own limit.
+
+---
+
 ## 6. Interactive analytics
 
 Every chart reads real records through the API. Nothing is generated or cached; a range with no data shows an empty state, not a flat line made up to fill space.

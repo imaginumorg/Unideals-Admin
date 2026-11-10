@@ -192,7 +192,7 @@ const Compose = ({ canWrite, onSent }) => {
           }
         />
         <form onSubmit={review} className="space-y-5 p-5">
-          {!canWrite && <InlineAlert tone="info">Only a Super Admin can send notifications. You can draft and preview.</InlineAlert>}
+          {!canWrite && <InlineAlert tone="info">Your role can't send notifications. You can draft and preview.</InlineAlert>}
           {error && <InlineAlert>{error}</InlineAlert>}
 
           <Field label="Title" hint={`${form.title.length}/100`}>
@@ -445,7 +445,8 @@ const ScheduledTab = ({ canWrite, version, onChanged }) => {
 }
 
 const Notification = () => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('notifications', 'manage')
   const { filters, setFilter } = useListFilters({ tab: 'compose' })
   const [version, setVersion] = useState(0)
   const { data: stats, refetch: refetchStats } = useFetch(notificationsApi.getStats)

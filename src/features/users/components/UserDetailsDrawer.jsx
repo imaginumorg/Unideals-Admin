@@ -8,7 +8,8 @@ import { Badge, Drawer, ErrorState, Section, Skeleton, StatusBadge } from '../..
 import { formatCurrency, formatDate, formatDateTime, titleCase } from '../../../shared/lib/format'
 
 const Body = ({ userId, version, onRequestAction }) => {
-  const { canWrite } = useAuth()
+  const { can, isAdmin } = useAuth()
+  const canManage = can('users', 'manage')
   // `version` changes after an action so the drawer shows fresh data.
   const load = useCallback(() => usersApi.getUserDetails(userId), [userId, version]) // eslint-disable-line react-hooks/exhaustive-deps
   const { data: user, loading, error, refetch } = useFetch(load)
@@ -100,12 +101,15 @@ const Body = ({ userId, version, onRequestAction }) => {
         )}
       </Section>
 
-      {canWrite && (
+      {(canManage || isAdmin) && (
         <Section title="Account actions">
           <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => onRequestAction(user, 'role')} className="btn btn-secondary">
-              <ShieldCheck className="h-4 w-4" /> {user.role === 'support' ? 'Remove support access' : 'Make support staff'}
-            </button>
+            {isAdmin && (
+              <button type="button" onClick={() => onRequestAction(user, 'role')} className="btn btn-secondary">
+                <ShieldCheck className="h-4 w-4" /> {user.role === 'support' ? 'Remove support access' : 'Make support staff'}
+              </button>
+            )}
+            {canManage && (
             <button
               type="button"
               onClick={() => onRequestAction(user, 'status')}
@@ -114,6 +118,7 @@ const Body = ({ userId, version, onRequestAction }) => {
               {user.status === 'suspended' ? <UserCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
               {user.status === 'suspended' ? 'Reactivate account' : 'Suspend account'}
             </button>
+            )}
           </div>
         </Section>
       )}

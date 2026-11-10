@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authApi } from '../api/authApi'
+import { accessApi } from '../../access/api/accessApi'
 import { useToast } from '../../../shared/components/ToastContext'
 import { SESSION_EXPIRED_EVENT } from '../../../shared/lib/apiClient'
 import { initialsOf, roleLabel } from '../../../shared/lib/format'
@@ -91,6 +92,43 @@ export const AuthProvider = ({ children }) => {
     setAdmin(null)
   }, [])
 
+  // Section access for the signed-in person. The server enforces it on every
+  // request; the UI uses it to hide what the person can't open or change.
+  // Stored with the admin id so a different sign-in never reuses it.
+  const [access, setAccess] = useState(null) // { id, data }
+  const adminId = admin?.id
+  const loadAccess = useCallback(async () => {
+    if (!adminId) return
+    const response = await accessApi.get()
+    // If it can't load, fall back to "see everything, change nothing": the
+    // server still refuses anything the policy doesn't allow.
+    setAccess({ id: adminId, data: response.success ? response.data : { mine: null, failed: true } })
+  }, [adminId])
+
+  useEffect(() => {
+    if (!adminId) return undefined
+    const first = window.setTimeout(loadAccess, 0)
+    // Pick up policy changes when staff come back to the tab.
+    const onVisible = () => document.visibilityState === 'visible' && loadAccess()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearTimeout(first)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [adminId, loadAccess])
+
+  const accessData = adminId && access && access.id === adminId ? access.data : null
+  const isAdmin = admin?.role === 'admin'
+  const can = useCallback(
+    (feature, level = 'view') => {
+      if (isAdmin) return true
+      if (!accessData) return false
+      if (!accessData.mine) return level === 'view'
+      return Boolean(accessData.mine[feature]?.[level])
+    },
+    [isAdmin, accessData],
+  )
+
   // Merge profile edits into the session so the header updates immediately.
   const updateAdmin = useCallback((updates) => {
     setAdmin((current) => {
@@ -105,16 +143,19 @@ export const AuthProvider = ({ children }) => {
     () => ({
       admin,
       isAuthenticated: Boolean(admin),
-      isAdmin: admin?.role === 'admin',
+      isAdmin,
       isSupport: admin?.role === 'support',
-      canWrite: admin?.role === 'admin',
-      canManageReports: ['admin', 'support'].includes(admin?.role),
+      // Kept for Super-Admin-only actions (role changes, access settings).
+      canWrite: isAdmin,
+      can,
+      accessReady: !admin || isAdmin || Boolean(accessData),
+      reloadAccess: loadAccess,
       sessionLoading,
       login,
       logout,
       updateAdmin,
     }),
-    [admin, sessionLoading, login, logout, updateAdmin],
+    [admin, isAdmin, can, accessData, loadAccess, sessionLoading, login, logout, updateAdmin],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

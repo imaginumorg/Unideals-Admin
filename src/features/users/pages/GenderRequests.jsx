@@ -25,7 +25,8 @@ const GenderPill = ({ value }) =>
   value ? <Badge tone={GENDER_TONE[value] || 'neutral'}>{titleCase(value)}</Badge> : <Badge>Not set</Badge>
 
 const GenderRequests = () => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('genderRequests', 'manage')
   const { showToast } = useToast()
   const { refresh: refreshAttention } = useAttention()
   const [page, setPage] = useState(1)
@@ -66,7 +67,7 @@ const GenderRequests = () => {
 
       {!canWrite && (
         <InlineAlert tone="info" className="mb-4">
-          You can view requests. Only a Super Admin can approve or reject them.
+          You can view requests. Your role can't approve or reject them.
         </InlineAlert>
       )}
 

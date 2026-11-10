@@ -176,7 +176,8 @@ const RowActions = ({ campus, onEdit, onToggle, onDelete }) => {
 }
 
 const Campuses = () => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('campuses', 'manage')
   const { showToast } = useToast()
   const { data, loading, error, refetch } = useFetch(campusesApi.getCampuses)
   const campuses = useMemo(() => data || [], [data])

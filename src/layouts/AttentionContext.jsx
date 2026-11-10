@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { dashboardApi } from '../features/dashboard/api/dashboardApi'
+import { accessApi } from '../features/access/api/accessApi'
 
 /**
  * Counts of things waiting on staff (pending reports, gender requests).
@@ -14,9 +14,10 @@ export const AttentionProvider = ({ children }) => {
   const [counts, setCounts] = useState({ pendingReports: 0, pendingGenderRequests: 0, autoHiddenListings: 0, failingJobs: 0 })
 
   const refresh = useCallback(async () => {
-    const response = await dashboardApi.getDashboard()
-    if (response.success && response.data?.stats) {
-      const { pendingReports = 0, pendingGenderRequests = 0, autoHiddenListings = 0, failingJobs = 0 } = response.data.stats
+    // Counts only for sections this person can see (server-side filtered).
+    const response = await accessApi.attention()
+    if (response.success && response.data) {
+      const { pendingReports = 0, pendingGenderRequests = 0, autoHiddenListings = 0, failingJobs = 0 } = response.data
       setCounts({ pendingReports, pendingGenderRequests, autoHiddenListings, failingJobs })
     }
   }, [])

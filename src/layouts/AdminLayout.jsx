@@ -20,10 +20,11 @@ const readCollapsed = () => {
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readCollapsed)
-  const { isAuthenticated, sessionLoading } = useAuth()
+  const { isAuthenticated, sessionLoading, accessReady } = useAuth()
   const location = useLocation()
 
-  if (sessionLoading) return <Loader fullScreen />
+  // Wait for section access too, so nothing flashes and then disappears.
+  if (sessionLoading || (isAuthenticated && !accessReady)) return <Loader fullScreen />
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />
 
   const toggleCollapsed = () => {

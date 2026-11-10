@@ -28,7 +28,7 @@ import { downloadCsv, formatDate, formatNumber } from '../../../shared/lib/forma
 const PAGE_SIZE = 12
 const FILTER_DEFAULTS = { search: '', status: 'all', campus: 'all' }
 
-const RowMenu = ({ user, canWrite, onView, onAction }) => {
+const RowMenu = ({ user, canWrite, canChangeRole, onView, onAction }) => {
   const [open, setOpen] = useState(false)
   return (
     <div className="relative inline-block" onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setOpen(false)}>
@@ -40,15 +40,17 @@ const RowMenu = ({ user, canWrite, onView, onAction }) => {
           <button type="button" onClick={() => { setOpen(false); onView() }} className="flex w-full rounded-lg px-3 py-2 text-sm text-fg-2 hover:bg-surface-2">
             View details
           </button>
+          {canChangeRole && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onAction('role') }}
+              className="flex w-full rounded-lg px-3 py-2 text-sm text-fg-2 hover:bg-surface-2"
+            >
+              {user.role === 'support' ? 'Remove support access' : 'Make support staff'}
+            </button>
+          )}
           {canWrite && (
             <>
-              <button
-                type="button"
-                onClick={() => { setOpen(false); onAction('role') }}
-                className="flex w-full rounded-lg px-3 py-2 text-sm text-fg-2 hover:bg-surface-2"
-              >
-                {user.role === 'support' ? 'Remove support access' : 'Make support staff'}
-              </button>
               <button
                 type="button"
                 onClick={() => { setOpen(false); onAction('status') }}
@@ -66,7 +68,8 @@ const RowMenu = ({ user, canWrite, onView, onAction }) => {
 
 const Users = () => {
   const { showToast } = useToast()
-  const { canWrite } = useAuth()
+  const { can, isAdmin } = useAuth()
+  const canWrite = can('users', 'manage')
   const campuses = useCampusOptions()
   const { filters, setFilter, resetFilters, isFiltered } = useListFilters(FILTER_DEFAULTS)
   const [searchText, setSearchText] = useSearchFilter(filters, setFilter)
@@ -264,6 +267,7 @@ const Users = () => {
                       <RowMenu
                         user={user}
                         canWrite={canWrite}
+                        canChangeRole={isAdmin}
                         onView={() => setSelectedUserId(user.id)}
                         onAction={(kind) => setConfirm({ user, kind })}
                       />

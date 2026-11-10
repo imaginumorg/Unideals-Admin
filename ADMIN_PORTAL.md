@@ -21,7 +21,16 @@ A guide for Unideals staff: what each page is for, what each role can do, and wh
 | Send or schedule push notifications | ✅ | — |
 | Edit your own profile and password | ✅ | ✅ |
 
-Support staff see the same screens; action buttons a role can't use are hidden or disabled.
+The table shows the **default** Support access. A Super Admin can change it under **System → Roles & Access**:
+
+- For each section, **Can see** shows or hides it for Support (sidebar, search and direct links). **Can change** allows that section's actions; it needs **Can see**.
+- **What support will see** previews the result before saving. **Reset to default** restores the table above.
+- The server checks the policy on every request, so a hidden section can't be opened by typing its address. Support staff pick up changes the next time they load a page or return to the tab.
+- Changing user roles and editing access always stay Super Admin only.
+- Every save is recorded in the audit log as *Changed support access*, with what changed.
+- The campus list stays readable for everyone because filters on other pages use it. Hiding *Campuses* hides its page.
+
+Action buttons a role can't use are hidden, and pages explain what's missing.
 
 ## Signing in
 
@@ -135,6 +144,8 @@ Orders are deals between two students. Stages:
 - Email domains (e.g. `iitd.ac.in`) help suggest the right campus at sign-up.
 
 ### Reports
+- Tabs at the top filter by type (all, listings, users, help & support), with live counts. *N items waiting* shows how many match.
+- Each card shows: type, report count and priority, when it was last reported and since when; the item with its status and reasons; and its actions. Actions appear only if your role allows them.
 - Reports are grouped by item (listing, user, or help request), with the most-reported items first.
 - **Evidence** opens every individual report: who reported, reason, description, links, and — for reports made from a chat — **the last 40 messages of that conversation as they were when the report was filed**. The reporter's messages are on the right. Edits or deletions made afterwards don't change this copy. Items with chat evidence show a *chat* tag.
 - **Resolve**: closes every open report as "action taken". You can add a note.

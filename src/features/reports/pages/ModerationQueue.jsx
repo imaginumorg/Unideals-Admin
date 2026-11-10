@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react'
-import { Ban, FileSearch, CheckCircle2, EyeOff, Flag, ImageOff, LifeBuoy, Mail, Package, ShieldAlert, ShieldCheck, Trash2, User, UserCheck, X, XCircle } from 'lucide-react'
+import { Clock, Headphones, ShieldAlert, ShieldCheck, Tag, Users, X } from 'lucide-react'
 import { moderationApi } from '../api/moderationApi'
 import { productsApi } from '../../products/api/productsApi'
 import { usersApi } from '../../users/api/usersApi'
@@ -9,10 +9,10 @@ import { useAttention } from '../../../layouts/AttentionContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useListFilters } from '../../../shared/hooks/useListFilters'
 import { REPORT_REASON_LABELS } from '../../../shared/constants/constants'
-import Avatar from '../../../shared/components/Avatar'
 import ReportEvidenceDrawer from '../components/ReportEvidenceDrawer'
+import QueueItemCard from '../components/QueueItemCard'
+import { TYPE_META } from '../reportMeta'
 import {
-  Badge,
   Card,
   ConfirmDialog,
   EmptyState,
@@ -22,11 +22,10 @@ import {
   PageHeader,
   Pagination,
   Skeleton,
-  StatusBadge,
   Tabs,
   cx,
 } from '../../../shared/components/ui'
-import { formatCurrency, formatNumber, formatRelative, titleCase } from '../../../shared/lib/format'
+import { formatNumber, titleCase } from '../../../shared/lib/format'
 import { useAnalyticsRange } from '../../../shared/context/AnalyticsRangeContext'
 import { analyticsApi } from '../../../shared/lib/analyticsApi'
 import { exportRowsCsv, exportTrendCsv, hasAny, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
@@ -44,13 +43,6 @@ const REPORT_SERIES = [
   { key: 'reportsClosed', label: 'Closed', color: 'var(--c-cat-3)' },
 ]
 
-const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'neutral' }
-const TYPE_META = {
-  Product: { label: 'Listing', icon: Package },
-  User: { label: 'User', icon: User },
-  Support: { label: 'Help & support', icon: LifeBuoy },
-}
-
 // Every way an item can leave the queue, with copy for the confirm dialog.
 const ACTIONS = {
   resolve: { title: 'Mark as resolved?', text: 'All open reports are closed as “action taken”, and every reporter is told action was taken.', label: 'Resolve', tone: 'primary', note: 'Note for the audit log' },
@@ -62,50 +54,12 @@ const ACTIONS = {
   activate: { title: 'Reactivate this user?', text: 'They can sign in and trade again.', label: 'Reactivate', tone: 'primary' },
 }
 
-const Target = ({ item }) => {
-  const target = item.target
-  if (!target) return <p className="text-sm text-muted italic">This item no longer exists.</p>
-
-  if (target.type === 'product') {
-    return (
-      <div className="flex gap-3.5">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface-2 text-subtle">
-          {target.image ? <img src={target.image} alt="" className="h-full w-full object-cover" loading="lazy" /> : <ImageOff className="h-5 w-5" />}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-fg">{target.title}</p>
-          <p className="mt-0.5 text-xs text-muted">
-            {formatCurrency(target.price)} · {titleCase(target.category)}
-            {target.seller?.name && <> · by {target.seller.name}</>}
-          </p>
-          <div className="mt-1.5"><StatusBadge status={target.status} /></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (target.type === 'user') {
-    return (
-      <div className="flex items-center gap-3.5">
-        <Avatar src={target.avatar} name={target.name} className="h-12 w-12 text-sm" />
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-fg">{target.name}</p>
-          <p className="truncate text-xs text-muted">{target.email}</p>
-          <div className="mt-1.5"><StatusBadge status={target.status} /></div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-w-0">
-      <p className="font-semibold text-fg">{target.title || 'Support request'}</p>
-      <p className="mt-0.5 text-xs text-muted">From {target.name} {target.email && <>({target.email})</>}</p>
-      {target.description && <p className="mt-2 line-clamp-3 rounded-lg bg-surface-2 p-3 text-sm text-fg-2">{target.description}</p>}
-      {target.reference && <p className="mt-1.5 font-mono text-xs text-brand-fg">Ref: {target.reference}</p>}
-    </div>
-  )
-}
+const TYPE_TABS = [
+  { value: 'all', label: 'All', icon: null },
+  { value: 'Product', label: 'Listings', icon: Tag },
+  { value: 'User', label: 'Users', icon: Users },
+  { value: 'Support', label: 'Help & support', icon: Headphones },
+]
 
 const QueueSkeleton = () => (
   <div className="space-y-4">
@@ -119,7 +73,9 @@ const QueueSkeleton = () => (
 )
 
 const ModerationQueue = () => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  // What this person can do from the queue (the API enforces the same).
+  const perms = { reports: can('reports', 'manage'), listings: can('listings', 'manage'), users: can('users', 'manage') }
   const { showToast } = useToast()
   const { refresh: refreshAttention } = useAttention()
   const { filters, setFilter, setFilters } = useListFilters({ type: 'all', priority: '', reason: '' })
@@ -146,7 +102,6 @@ const ModerationQueue = () => {
   const breakdown = useAnalytics(
     analyticsApi.breakdown,
     { from: range.from, to: range.to, dims: 'queueType,queuePriority,queueReason,reportStatus' },
-    { enabled: chartsVisible },
   )
   const [trendInterval, setTrendInterval, trendIntervals] = useInterval(range.days)
   const trends = useAnalytics(
@@ -216,14 +171,21 @@ const ModerationQueue = () => {
   }
 
   const open = (item, action) => setPending({ item, action })
+  // Explain missing buttons rather than leaving people guessing.
+  const accessNote = !perms.reports
+    ? 'Your role can view reports but not resolve or dismiss them.'
+    : !perms.listings || !perms.users
+      ? `You can resolve and dismiss reports. ${[!perms.listings && 'Blocking listings', !perms.users && 'suspending users'].filter(Boolean).join(' and ')} needs more access.`
+      : ''
   const [evidenceItem, setEvidenceItem] = useState(null)
 
   return (
     <div>
       <PageHeader
         title="Reports"
-        description="Grouped by item, most-reported first. Resolving or enforcing closes every open report on that item."
+        description="Reported listings, users and help requests, most-reported first. Resolving or enforcing closes every open report on the item."
         icon={ShieldAlert}
+        iconTile
         actions={
           <>
             {chartsVisible && <DateRangeFilter />}
@@ -342,18 +304,43 @@ const ModerationQueue = () => {
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs
-          value={filters.type}
-          onChange={(value) => setFilter('type', value)}
-          tabs={[
-            { value: 'all', label: 'All' },
-            { value: 'Product', label: 'Listings' },
-            { value: 'User', label: 'Users' },
-            { value: 'Support', label: 'Help & support' },
-          ]}
-        />
-        {pagination?.total !== undefined && <p className="text-sm text-muted">{pagination.total} item{pagination.total === 1 ? '' : 's'} waiting</p>}
+      <div className="mb-5 flex flex-col gap-3 border-b border-line pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div role="tablist" aria-label="Report type" className="flex flex-wrap gap-2">
+          {TYPE_TABS.map((tab) => {
+            const active = filters.type === tab.value
+            const count = tab.value === 'all' ? (breakdown.data ? typeDonut.reduce((n, d) => n + d.value, 0) : null) : breakdown.data ? typeCounts[tab.value] || 0 : null
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter('type', tab.value)}
+                className={cx(
+                  'inline-flex h-9 items-center gap-2 rounded-lg border px-3.5 text-[13px] font-medium transition-[background-color,border-color,color] duration-150',
+                  active
+                    ? 'border-brand/60 bg-brand-soft text-fg shadow-[inset_0_0_0_1px_var(--c-brand-soft)]'
+                    : 'border-line bg-surface text-fg-2 hover:border-line-strong hover:bg-surface-2 hover:text-fg',
+                )}
+              >
+                {Icon && <Icon className={cx('h-4 w-4', active ? 'text-brand-fg' : 'text-muted')} />}
+                {tab.label}
+                {count !== null && (
+                  <span className={cx('min-w-5 rounded-md px-1.5 text-center text-[11px] tabular-nums', active ? 'bg-brand/25 text-fg' : 'bg-surface-3 text-muted')}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        {pagination?.total !== undefined && (
+          <p className="flex items-center gap-2 text-[13px] font-medium text-fg-2">
+            <Clock className="h-4 w-4 text-brand-fg" />
+            {pagination.total} item{pagination.total === 1 ? '' : 's'} waiting
+          </p>
+        )}
       </div>
 
       {drillFilters.length > 0 && (
@@ -376,9 +363,9 @@ const ModerationQueue = () => {
         </div>
       )}
 
-      {!canWrite && (
+      {accessNote && (
         <InlineAlert tone="info" className="mb-4">
-          As support staff you can resolve or dismiss reports. Blocking listings and suspending users needs a Super Admin.
+          {accessNote}
         </InlineAlert>
       )}
 
@@ -396,85 +383,10 @@ const ModerationQueue = () => {
         </Card>
       ) : (
         <div className={cx('space-y-4 transition-opacity', refreshing && 'opacity-60')}>
-          {items.map((item) => {
-            const meta = TYPE_META[item.targetModel] || TYPE_META.Product
-            const TypeIcon = meta.icon
-            const target = item.target
-            return (
-              <Card key={`${item.targetModel}-${item.targetId}`} className={cx('overflow-hidden', item.priority === 'high' && 'border-danger/25')}>
-                <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
-                  <Badge tone={PRIORITY_TONE[item.priority] || 'neutral'} dot>{item.priority || 'low'} priority</Badge>
-                  <Badge><TypeIcon className="h-3 w-3" /> {meta.label}</Badge>
-                  <span className="flex items-center gap-1 text-xs font-semibold text-danger">
-                    <Flag className="h-3.5 w-3.5" /> {item.reportCount} report{item.reportCount === 1 ? '' : 's'}
-                  </span>
-                  <span className="ml-auto text-xs text-subtle">
-                    First {formatRelative(item.firstReport)} · latest {formatRelative(item.latestReport)}
-                  </span>
-                </div>
-
-                <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto]">
-                  <div className="min-w-0 space-y-3">
-                    <Target item={item} />
-                    {item.targetModel !== 'Support' && item.reasons?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {item.reasons.map((reason) => (
-                          <Badge key={reason} tone="danger">{REPORT_REASON_LABELS[reason] || titleCase(reason)}</Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap content-start gap-2 lg:w-[360px] lg:justify-end">
-                    {canWrite && target && item.targetModel === 'Product' && !target.is_deleted && (
-                      <>
-                        <button type="button" disabled={target.status === 'blocked'} onClick={() => open(item, 'block')} className="btn btn-danger btn-sm">
-                          <Ban className="h-3.5 w-3.5" /> Block
-                        </button>
-                        <button type="button" disabled={target.status === 'unlisted'} onClick={() => open(item, 'unlist')} className="btn btn-secondary btn-sm">
-                          <EyeOff className="h-3.5 w-3.5" /> Unlist
-                        </button>
-                        <button type="button" onClick={() => open(item, 'delete')} className="btn btn-ghost btn-sm text-danger">
-                          <Trash2 className="h-3.5 w-3.5" /> Delete
-                        </button>
-                      </>
-                    )}
-                    {canWrite && target && item.targetModel === 'User' && (
-                      target.status === 'suspended' ? (
-                        <button type="button" onClick={() => open(item, 'activate')} className="btn btn-success btn-sm">
-                          <UserCheck className="h-3.5 w-3.5" /> Reactivate
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => open(item, 'suspend')} className="btn btn-danger btn-sm">
-                          <Ban className="h-3.5 w-3.5" /> Suspend
-                        </button>
-                      )
-                    )}
-                    {item.targetModel === 'Support' && target?.email && (
-                      <a
-                        href={`mailto:${target.email}?subject=${encodeURIComponent(`Unideals Support: ${target.title || 'Your request'}`)}`}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        <Mail className="h-3.5 w-3.5" /> Reply
-                      </a>
-                    )}
-                    <button type="button" onClick={() => setEvidenceItem(item)} className="btn btn-secondary btn-sm">
-                      <FileSearch className="h-3.5 w-3.5" /> Evidence
-                      {item.hasChat && <span className="rounded bg-brand-soft px-1 text-[10px] text-brand-fg">chat</span>}
-                    </button>
-                    <div className="hidden basis-full lg:block" />
-                    <button type="button" onClick={() => open(item, 'dismiss')} className="btn btn-secondary btn-sm">
-                      <XCircle className="h-3.5 w-3.5" /> Dismiss
-                    </button>
-                    <button type="button" onClick={() => open(item, 'resolve')} className="btn btn-primary btn-sm">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-          {pagination && (
+          {items.map((item) => (
+            <QueueItemCard key={`${item.targetModel}-${item.targetId}`} item={item} perms={perms} onAction={open} onEvidence={setEvidenceItem} />
+          ))}
+          {pagination && pagination.totalPages > 1 && (
             <Card className="overflow-hidden">
               <Pagination {...pagination} onPageChange={(page) => setFilter('page', page)} />
             </Card>

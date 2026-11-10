@@ -14,14 +14,23 @@ export const cx = (...parts) => parts.filter(Boolean).join(' ')
  * rendered: the breadcrumb already says where you are, and an icon tile per
  * page read as template chrome.
  */
-export const PageHeader = memo(({ title, description, actions, children }) => (
-  <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-    <div className="min-w-0">
-      <h1 className="text-xl leading-7 font-semibold tracking-[-0.02em] text-fg md:text-[22px]">{title}</h1>
-      {description && <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted">{description}</p>}
-      {children}
+export const PageHeader = memo(({ title, description, actions, children, icon: Icon, iconTile = false }) => (
+  <div className={cx('mb-7 flex flex-col gap-4 md:flex-row md:justify-between', iconTile ? 'md:items-center' : 'md:items-end')}>
+    <div className="flex min-w-0 items-center gap-4">
+      {/* Opt-in icon tile (e.g. Reports); other pages keep the plain title. */}
+      {iconTile && Icon && (
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand/25 bg-brand-soft text-brand-fg">
+          <Icon className="h-[22px] w-[22px]" />
+        </span>
+      )}
+      <div className="min-w-0">
+        <h1 className="text-xl leading-7 font-semibold tracking-[-0.02em] text-fg md:text-[22px]">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted">{description}</p>}
+        {children}
+      </div>
     </div>
-    {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    {/* Buttons keep their row; the title/description wraps instead. */}
+    {actions && <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:flex-nowrap">{actions}</div>}
   </div>
 ))
 

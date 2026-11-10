@@ -1,7 +1,8 @@
 import { memo } from 'react'
 import { NavLink } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
-import { NAV_GROUPS } from './navigation'
+import { NAV_GROUPS, isNavItemVisible } from './navigation'
+import { useAuth } from '../features/auth/context/AuthContext'
 import { useAttention } from './AttentionContext'
 import { cx } from '../shared/components/ui'
 
@@ -28,6 +29,11 @@ const Brand = ({ collapsed, onToggleCollapse }) => (
 
 const Sidebar = ({ open, collapsed, onClose, onToggleCollapse }) => {
   const { counts } = useAttention()
+  const { can, isAdmin } = useAuth()
+  // Only the sections this person can open; empty groups disappear.
+  const groups = NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => isNavItemVisible(item, { can, isAdmin })) })).filter(
+    (group) => group.items.length,
+  )
 
   return (
     <>
@@ -48,7 +54,7 @@ const Sidebar = ({ open, collapsed, onClose, onToggleCollapse }) => {
         </div>
 
         <nav aria-label="Main" className={cx('no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-4', collapsed && 'lg:overflow-visible lg:px-2.5')}>
-          {NAV_GROUPS.map((group, groupIndex) => (
+          {groups.map((group, groupIndex) => (
             <div key={group.label} className={groupIndex ? 'mt-5' : ''}>
               <p className={cx('mb-1 px-2 text-[11px] font-medium text-subtle', collapsed && 'lg:hidden')}>{group.label}</p>
               {collapsed && groupIndex > 0 && <div className="mx-auto mb-2 hidden h-px w-5 bg-line lg:block" />}

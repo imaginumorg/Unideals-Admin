@@ -35,7 +35,8 @@ const Party = ({ role, person, campus }) => (
 )
 
 const Body = ({ orderId, onChanged }) => {
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('orders', 'manage')
   const { showToast } = useToast()
   const [version, setVersion] = useState(0)
   const load = useCallback(() => ordersApi.getOrderDetails(orderId), [orderId, version]) // eslint-disable-line react-hooks/exhaustive-deps

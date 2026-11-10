@@ -56,7 +56,8 @@ const Products = () => {
   const [searchText, setSearchText] = useSearchFilter(filters, setFilter)
   const [selectedId, setSelectedId] = useState(null)
   const [bulkAction, setBulkAction] = useState(null)
-  const { canWrite } = useAuth()
+  const { can } = useAuth()
+  const canWrite = can('listings', 'manage')
   const { showToast } = useToast()
   const { counts: attention, refresh: refreshAttention } = useAttention()
   const reviewTab = filters.status === 'review'
