@@ -33,7 +33,7 @@ const ChatTranscript = ({ chat, reporterId }) => {
               <div className={cx('flex', mine ? 'justify-end' : 'justify-start')}>
                 <div
                   className={cx(
-                    'max-w-[85%] rounded-2xl px-3 py-2 text-[13px]',
+                    'max-w-[85%] rounded-xl px-3 py-2 text-[13px]',
                     mine ? 'rounded-br-md bg-brand-soft text-fg' : 'rounded-bl-md border border-line bg-surface text-fg',
                     message.isFlagged && 'ring-1 ring-danger',
                   )}

@@ -103,8 +103,8 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm text-muted">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-fg md:text-[28px]">
+          <p className="text-[13px] text-muted">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h1 className="mt-1 text-xl leading-7 font-semibold tracking-[-0.02em] text-fg md:text-[22px]">
             {greeting()}, {firstName}
           </h1>
         </div>
@@ -114,7 +114,7 @@ const Dashboard = () => {
       </div>
 
       {/* Trends compare month-to-date with the same days last month. */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <StatCard label="Total users" icon={Users} value={formatNumber(stats.totalUsers)} trend={stats.trends?.users} hint={`${formatNumber(mtd.newUsers)} new this month`} loading={isLoading} />
         <StatCard label="Live listings" icon={Package} tone="success" value={formatNumber(stats.listedProducts)} trend={stats.trends?.products} hint={`${formatNumber(mtd.newListings)} posted this month`} loading={isLoading} />
         <StatCard label="Completed deals" icon={ShoppingBag} tone="violet" value={formatNumber(stats.completedDeals)} trend={stats.trends?.orders} hint={`${formatNumber(mtd.completedDeals)} this month`} loading={isLoading} />
@@ -125,18 +125,24 @@ const Dashboard = () => {
       <div className="grid gap-6 xl:grid-cols-5">
         <Card className="xl:col-span-3">
           <CardHeader title="Needs attention" description="Work queues waiting on staff" icon={ShieldAlert} />
-          <div className="grid gap-px overflow-hidden rounded-b-2xl bg-line sm:grid-cols-2">
+          <div className="grid gap-px overflow-hidden rounded-b-[11px] bg-line sm:grid-cols-2">
             {queue.map(({ label, count, to, icon: Icon, tone, hint }) => (
-              <Link key={label} to={to} className="group flex items-center gap-4 bg-surface p-5 transition hover:bg-surface-2/60">
-                <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', toneClass(count ? tone : 'neutral'))}>
-                  <Icon className="h-5 w-5" />
+              <Link key={label} to={to} className="group flex items-center gap-3.5 bg-surface px-5 py-4 transition-colors duration-150 hover:bg-surface-2/60">
+                <span className={cx('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', toneClass(count ? tone : 'neutral'))}>
+                  <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  {isLoading ? <Skeleton className="h-6 w-10" /> : <p className="text-xl font-bold text-fg tabular-nums">{formatNumber(count)}</p>}
-                  <p className="truncate text-[13px] font-medium text-fg-2">{label}</p>
+                  <div className="flex items-baseline gap-2">
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-8" />
+                    ) : (
+                      <span className={cx('text-lg leading-6 font-semibold tabular-nums', count ? 'text-fg' : 'text-subtle')}>{formatNumber(count)}</span>
+                    )}
+                    <span className="truncate text-[13px] font-medium text-fg-2">{label}</span>
+                  </div>
                   <p className="truncate text-xs text-subtle">{hint}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-subtle transition group-hover:translate-x-0.5 group-hover:text-fg" />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-subtle opacity-0 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-fg group-hover:opacity-100" />
               </Link>
             ))}
           </div>
@@ -168,7 +174,7 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-                  <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${campus.percentage ?? 0}%` }} />
+                  <div className="h-full rounded-full bg-chart-1 transition-[width] duration-700 ease-out" style={{ width: `${campus.percentage ?? 0}%` }} />
                 </div>
               </div>
             ))}
@@ -200,7 +206,7 @@ const Dashboard = () => {
 
         <Card className="xl:col-span-2">
           <CardHeader title="Account health" icon={Users} />
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-b-2xl bg-line">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-b-[11px] bg-line">
             {[
               { label: 'Active', value: stats.activeUsers, tone: 'text-success' },
               { label: 'Inactive', value: stats.inactiveUsers, tone: 'text-fg' },
@@ -209,7 +215,7 @@ const Dashboard = () => {
             ].map((item) => (
               <div key={item.label} className="bg-surface p-5">
                 <dt className="text-xs font-medium text-muted">{item.label}</dt>
-                <dd className={cx('mt-1 text-2xl font-bold tabular-nums', item.tone)}>
+                <dd className={cx('mt-1 text-[22px] leading-7 font-semibold tracking-[-0.02em] tabular-nums', item.tone)}>
                   {isLoading ? <Skeleton className="h-7 w-12" /> : formatNumber(item.value)}
                 </dd>
               </div>

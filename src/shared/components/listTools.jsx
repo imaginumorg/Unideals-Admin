@@ -51,11 +51,11 @@ export const Checkbox = ({ checked, indeterminate = false, onChange, label }) =>
       onChange()
     }}
     className={cx(
-      'flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border transition',
-      checked || indeterminate ? 'border-brand bg-brand text-white' : 'border-line-strong bg-surface hover:border-brand',
+      'flex h-4 w-4 items-center justify-center rounded border transition-colors duration-100',
+      checked || indeterminate ? 'border-brand bg-brand text-white' : 'border-line-strong bg-surface-2 hover:border-muted',
     )}
   >
-    {indeterminate ? <Minus className="h-3 w-3" strokeWidth={3} /> : checked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+    {indeterminate ? <Minus className="h-2.5 w-2.5" strokeWidth={3.5} /> : checked ? <Check className="h-2.5 w-2.5" strokeWidth={3.5} /> : null}
   </button>
 )
 
@@ -66,9 +66,16 @@ export const Checkbox = ({ checked, indeterminate = false, onChange, label }) =>
 export const BulkBar = ({ count, noun = 'item', actions, onAction, onClear, busy }) => {
   if (!count) return null
   return (
-    <div className="pop animate-pop-in fixed bottom-5 left-1/2 z-40 flex w-[min(720px,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-2 px-4 py-3">
-      <span className="mr-auto text-sm font-semibold text-fg">
-        {count} {noun}
+    <div
+      role="toolbar"
+      aria-label="Bulk actions"
+      className="pop animate-pop-in fixed bottom-6 left-1/2 z-40 flex w-[min(680px,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-1.5 rounded-xl py-2 pr-2 pl-3"
+    >
+      <span className="mr-auto flex items-center gap-2 text-[13px] text-fg-2">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-brand px-1.5 text-[11px] font-semibold text-white tabular-nums">
+          {count}
+        </span>
+        {noun}
         {count === 1 ? '' : 's'} selected
       </span>
       {actions.map(({ key, label, icon: Icon, tone }) => (

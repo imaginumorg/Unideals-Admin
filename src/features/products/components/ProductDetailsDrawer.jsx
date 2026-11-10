@@ -104,9 +104,9 @@ const Body = ({ productId, onChanged, onClose }) => {
           <Badge>{titleCase(product.category)}</Badge>
           {product.condition && <Badge>{titleCase(product.condition)}</Badge>}
         </div>
-        <h3 className="mt-2.5 text-lg font-bold text-fg">{product.title}</h3>
+        <h3 className="mt-2.5 text-lg font-semibold text-fg">{product.title}</h3>
         <p className="mt-1 flex items-baseline gap-2">
-          <span className="text-xl font-bold text-fg">{formatCurrency(product.price)}</span>
+          <span className="text-xl font-semibold text-fg">{formatCurrency(product.price)}</span>
           {product.original_price > product.price && <span className="text-sm text-subtle line-through">{formatCurrency(product.original_price)}</span>}
           {product.is_negotiable && <span className="text-xs text-muted">Negotiable</span>}
         </p>

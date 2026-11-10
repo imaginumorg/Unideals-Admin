@@ -6,14 +6,13 @@ import {
   CheckCircle2,
   CircleSlash,
   Gauge,
-  HeartPulse,
   RefreshCw,
   Server,
   XCircle,
 } from 'lucide-react'
 import { systemApi } from '../api/jobsApi'
 import { useFetch } from '../../../shared/hooks/useFetch'
-import { Badge, Card, CardHeader, ErrorState, Skeleton, Tabs, Toggle, cx, toneClass } from '../../../shared/components/ui'
+import { Badge, Card, CardHeader, ErrorState, PageHeader, Skeleton, Tabs, Toggle, cx, toneClass } from '../../../shared/components/ui'
 import { formatNumber, formatRelative } from '../../../shared/lib/format'
 
 const STATE = {
@@ -181,34 +180,29 @@ const ServiceStatus = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex items-start gap-3.5">
-          <span className="mt-0.5 hidden h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface text-brand-fg sm:flex">
-            <HeartPulse className="h-5 w-5" />
-          </span>
-          <div>
-            <h1 className="text-[22px] font-bold tracking-tight text-fg md:text-2xl">Service status</h1>
-            <p className="mt-1 text-sm text-muted">Live health of the API and the services it depends on.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-muted">
-            Auto-refresh <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh every 30 seconds" />
-          </label>
-          <button type="button" onClick={recheck} disabled={rechecking} className="btn btn-secondary">
-            <RefreshCw className={cx('h-4 w-4', (refreshing || rechecking) && 'animate-spin')} /> Recheck now
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Service status"
+        description="Live health of the API and the services it depends on."
+        actions={
+          <>
+            <label className="flex items-center gap-2 text-xs text-muted">
+              Auto-refresh <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh every 30 seconds" />
+            </label>
+            <button type="button" onClick={recheck} disabled={rechecking} className="btn btn-secondary">
+              <RefreshCw className={cx('h-4 w-4', (refreshing || rechecking) && 'animate-spin')} /> Recheck now
+            </button>
+          </>
+        }
+      />
 
       {/* Overall banner */}
       {loading && !data ? (
-        <Skeleton className="h-20 w-full rounded-2xl" />
+        <Skeleton className="h-20 w-full rounded-xl" />
       ) : (
-        <div className={cx('flex items-center gap-4 rounded-2xl px-5 py-4', toneClass(overall.tone))}>
-          <OverallIcon className="h-6 w-6 shrink-0" />
+        <div className={cx('flex items-center gap-3.5 rounded-xl border border-current/15 px-5 py-3.5', toneClass(overall.tone))}>
+          <OverallIcon className="h-5 w-5 shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-base font-bold">{OVERALL_COPY[data.overall] || overall.label}</p>
+            <p className="text-sm font-semibold">{OVERALL_COPY[data.overall] || overall.label}</p>
             <p className="text-xs opacity-80">
               Checked {formatRelative(data.checkedAt)} · external services checked {formatRelative(data.externalCheckedAt)}
             </p>
@@ -278,7 +272,7 @@ const ServiceStatus = () => {
               ].map((item) => (
                 <div key={item.label} className="bg-surface px-5 py-4">
                   <dt className="text-xs text-muted">{item.label}</dt>
-                  <dd className={cx('mt-1 text-xl font-bold tabular-nums', item.tone || 'text-fg')}>{item.value}</dd>
+                  <dd className={cx('mt-1 text-xl font-semibold tabular-nums', item.tone || 'text-fg')}>{item.value}</dd>
                   {item.sub && <dd className="text-[11px] text-subtle">{item.sub}</dd>}
                 </div>
               ))}
@@ -338,7 +332,7 @@ const ServiceStatus = () => {
             ].map((item) => (
               <div key={item.label} className="bg-surface px-5 py-4">
                 <dt className="text-xs text-muted">{item.label}</dt>
-                <dd className="mt-1 text-lg font-bold text-fg tabular-nums">{item.value}</dd>
+                <dd className="mt-1 text-lg font-semibold text-fg tabular-nums">{item.value}</dd>
                 <dd className="text-[11px] text-subtle">{item.sub}</dd>
               </div>
             ))}

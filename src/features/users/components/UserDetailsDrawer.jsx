@@ -43,7 +43,7 @@ const Body = ({ userId, version, onRequestAction }) => {
       <div className="flex items-start gap-4">
         <Avatar src={user.avatar} name={user.name} className="h-16 w-16 text-lg" />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-lg font-bold text-fg">{user.name}</h3>
+          <h3 className="truncate text-lg font-semibold text-fg">{user.name}</h3>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <StatusBadge status={user.status} />
             {user.role === 'support' && <Badge tone="info"><ShieldCheck className="h-3 w-3" /> Support</Badge>}
@@ -62,7 +62,7 @@ const Body = ({ userId, version, onRequestAction }) => {
         ].map(({ icon: Icon, label, value, danger }) => (
           <div key={label} className="rounded-xl border border-line bg-surface-2/50 p-3">
             <Icon className={`h-4 w-4 ${danger ? 'text-danger' : 'text-muted'}`} />
-            <p className={`mt-2 text-lg font-bold tabular-nums ${danger ? 'text-danger' : 'text-fg'}`}>{value}</p>
+            <p className={`mt-2 text-lg font-semibold tabular-nums ${danger ? 'text-danger' : 'text-fg'}`}>{value}</p>
             <p className="text-[11px] text-muted">{label}</p>
           </div>
         ))}

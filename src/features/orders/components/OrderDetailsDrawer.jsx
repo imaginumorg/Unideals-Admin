@@ -92,7 +92,7 @@ const Body = ({ orderId, onChanged }) => {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <button type="button" onClick={copyId} className="group flex items-center gap-2 font-mono text-lg font-bold text-fg">
+          <button type="button" onClick={copyId} className="group flex items-center gap-2 font-mono text-lg font-semibold text-fg">
             {order.orderId}
             {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4 text-subtle opacity-0 transition group-hover:opacity-100" />}
           </button>
@@ -109,7 +109,7 @@ const Body = ({ orderId, onChanged }) => {
           <p className="truncate font-semibold text-fg">{order.product?.title}</p>
           <p className="text-xs text-muted">{order.product?.category}</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-fg">{formatCurrency(order.amount)}</span>
+            <span className="text-lg font-semibold text-fg">{formatCurrency(order.amount)}</span>
             {discount > 0 && (
               <span className="text-xs text-success">
                 {formatCurrency(discount)} off {formatCurrency(order.originalAmount)}

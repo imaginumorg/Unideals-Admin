@@ -83,7 +83,7 @@ const localMinDateTime = () => {
 const Preview = ({ form }) => (
   <div className="rounded-[28px] border border-line bg-canvas p-3">
     <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-surface-3" />
-    <div className="rounded-2xl border border-line bg-surface p-3.5" style={{ boxShadow: 'var(--shadow-card)' }}>
+    <div className="rounded-xl border border-line bg-surface p-3.5" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="flex items-center gap-2 text-[11px] text-muted">
         <img src="/favicon.svg" alt="" className="h-5 w-5 rounded-md" />
         Unideals · now
@@ -460,7 +460,7 @@ const Notification = () => {
     <div>
       <PageHeader title="Push notifications" description="Broadcast to students on the web app and mobile." icon={Bell} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total sent" icon={Send} value={formatNumber(stats?.totalSent)} loading={!stats} />
         <StatCard label="Delivered" icon={CheckCheck} tone="success" value={formatNumber(stats?.delivered)} hint={stats ? `${stats.deliveredPercent}% of sent` : ''} loading={!stats} />
         <StatCard label="Clicked" icon={MousePointerClick} tone="violet" value={formatNumber(stats?.clicked)} hint={stats ? `${stats.clickedPercent}% of sent` : ''} loading={!stats} />

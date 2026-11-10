@@ -237,7 +237,7 @@ const Campuses = () => {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <StatCard label="Total campuses" icon={Building2} value={campuses.length} loading={loading && !data} />
         <StatCard label="Live" icon={CirclePlay} tone="success" value={activeCount} loading={loading && !data} onClick={() => setStatus('active')} />
         <StatCard label="Paused" icon={CirclePause} tone="warning" value={campuses.length - activeCount} loading={loading && !data} onClick={() => setStatus('paused')} />

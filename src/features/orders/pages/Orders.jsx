@@ -78,7 +78,7 @@ const Orders = () => {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <StatCard label="All deals" icon={ShoppingBag} value={formatNumber(stats?.totalOrders)} trend={stats ? `${stats.totalGrowth >= 0 ? '+' : ''}${stats.totalGrowth}%` : null} hint="vs last month" loading={!stats} />
         <StatCard label="Negotiating" icon={Handshake} tone="warning" value={formatNumber(stats?.pendingOrders)} loading={!stats} onClick={() => setFilter('status', 'pending')} />
         <StatCard label="Pickup scheduled" icon={CalendarCheck} tone="violet" value={formatNumber(stats?.scheduledOrders)} loading={!stats} onClick={() => setFilter('status', 'scheduled')} />

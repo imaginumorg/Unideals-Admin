@@ -258,8 +258,8 @@ const Profile = () => {
   if (loading && !profile) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-44 w-full rounded-2xl" />
-        <div className="grid gap-4 sm:grid-cols-3">
+        <Skeleton className="h-44 w-full rounded-xl" />
+        <div className="grid gap-3 sm:grid-cols-3">
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
@@ -282,24 +282,21 @@ const Profile = () => {
     <div className="space-y-6">
       {/* Identity header */}
       <Card className="overflow-hidden">
-        <div className="relative h-28 bg-gradient-to-br from-[#2f35f4] via-[#4B45FF] to-[#7472f5]">
+        <div className="relative h-24 overflow-hidden border-b border-line bg-surface-2">
           <div
             aria-hidden
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
-              backgroundSize: '32px 32px',
-            }}
+            className="absolute inset-0"
+            style={{ background: 'radial-gradient(70% 140% at 0% 0%, var(--c-brand-soft) 0%, transparent 70%)' }}
           />
+          <div aria-hidden className="bg-grid absolute inset-0 opacity-40 [mask-image:linear-gradient(to_right,black,transparent_80%)]" />
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
             {/* Only the avatar overlaps the banner; the text stays below it. */}
-            <Avatar src={profile.avatar} name={profile.name} className="-mt-12 h-24 w-24 text-2xl" ringClassName="ring-4 ring-surface" />
+            <Avatar src={profile.avatar} name={profile.name} className="-mt-12 h-24 w-24 text-2xl" ringClassName="ring-4 ring-surface shadow-[var(--shadow-raised)]" />
             <div className="min-w-0 sm:pt-4">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-fg">{profile.name}</h1>
+                <h1 className="text-xl leading-7 font-semibold tracking-[-0.02em] text-fg">{profile.name}</h1>
                 <Badge tone={role === 'admin' ? 'brand' : 'info'}>
                   <ShieldCheck className="h-3 w-3" /> {roleLabel(role)}
                 </Badge>
@@ -318,7 +315,7 @@ const Profile = () => {
         </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Actions, last 7 days" icon={Activity} value={formatNumber(activity.last7d)} />
         <StatCard label="Actions, last 30 days" icon={CalendarDays} tone="violet" value={formatNumber(activity.last30d)} />
         <StatCard

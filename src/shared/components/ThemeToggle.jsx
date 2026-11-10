@@ -9,10 +9,10 @@ const ThemeToggle = ({ className = '' }) => {
       type="button"
       onClick={toggleTheme}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Light mode' : 'Dark mode'}
-      className={`btn btn-ghost btn-icon ${className}`}
+      data-tip={isDark ? 'Light mode' : 'Dark mode'}
+      className={`tip tip-bottom btn btn-ghost btn-icon ${className}`}
     >
-      {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
   )
 }

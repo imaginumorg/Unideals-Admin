@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { CornerDownLeft, Moon, Package, Search, ShoppingBag, Sun, Users } from 'lucide-react'
 import { ALL_NAV_ITEMS } from './navigation'
 import { useTheme } from '../shared/context/ThemeContext'
-import { cx } from '../shared/components/ui'
+import { cx, usePresence } from '../shared/components/ui'
 
 /**
  * Ctrl/⌘+K launcher: jump to any page, or search users / listings / orders.
@@ -14,6 +14,7 @@ const CommandPalette = ({ open, onClose }) => {
   const { isDark, toggleTheme } = useTheme()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const { mounted, state } = usePresence(open, 150)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -86,15 +87,29 @@ const CommandPalette = ({ open, onClose }) => {
     }
   }
 
-  if (!open) return null
+  if (!mounted) return null
 
-  let lastGroup = null
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh]">
-      <button type="button" aria-label="Close" onClick={close} className="animate-fade-in absolute inset-0 bg-overlay backdrop-blur-[2px]" />
-      <div role="dialog" aria-modal="true" aria-label="Command palette" className="pop animate-pop-in relative w-full max-w-xl overflow-hidden rounded-2xl">
+    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[14vh]">
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        onClick={close}
+        data-presence="overlay"
+        data-state={state}
+        className="absolute inset-0 bg-overlay backdrop-blur-[3px]"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        data-presence="dialog"
+        data-state={state}
+        className="pop relative w-full max-w-[600px] overflow-hidden rounded-[14px]"
+      >
         <div className="flex items-center gap-3 border-b border-line px-4">
-          <Search className="h-4 w-4 shrink-0 text-subtle" />
+          <Search className="h-[18px] w-[18px] shrink-0 text-subtle" />
           <input
             ref={inputRef}
             value={query}
@@ -104,35 +119,40 @@ const CommandPalette = ({ open, onClose }) => {
             }}
             onKeyDown={onKeyDown}
             placeholder="Search pages, users, listings, orders…"
-            className="h-14 w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-subtle"
+            className="h-[52px] w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-subtle"
           />
           <span className="kbd">Esc</span>
         </div>
-        <div className="max-h-[52vh] overflow-y-auto p-2">
-          {commands.length === 0 && <p className="px-3 py-8 text-center text-sm text-muted">No matches</p>}
+        <div className="max-h-[52vh] overflow-y-auto p-1.5">
+          {commands.length === 0 && <p className="px-3 py-10 text-center text-[13px] text-muted">No results for “{query}”</p>}
           {commands.map((command, index) => {
             const Icon = command.icon
-            const showGroup = command.group !== lastGroup
-            lastGroup = command.group
+            const showGroup = command.group !== commands[index - 1]?.group
+            const active = index === activeIndex
             return (
               <div key={command.id}>
-                {showGroup && <p className="eyebrow px-3 pt-2.5 pb-1.5">{command.group}</p>}
+                {showGroup && <p className="px-3 pt-3 pb-1 text-[11px] font-medium text-subtle">{command.group}</p>}
                 <button
                   type="button"
-                  onMouseEnter={() => setActiveIndex(index)}
+                  onMouseMove={() => !active && setActiveIndex(index)}
                   onClick={() => runCommand(command)}
                   className={cx(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition',
-                    index === activeIndex ? 'bg-brand-soft text-fg' : 'text-fg-2',
+                    'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] transition-colors duration-75',
+                    active ? 'bg-surface-3 text-fg' : 'text-fg-2',
                   )}
                 >
-                  <Icon className={cx('h-4 w-4 shrink-0', index === activeIndex ? 'text-brand-fg' : 'text-subtle')} />
+                  <Icon className={cx('h-4 w-4 shrink-0', active ? 'text-fg' : 'text-subtle')} />
                   <span className="min-w-0 flex-1 truncate">{command.label}</span>
-                  {index === activeIndex && <CornerDownLeft className="h-3.5 w-3.5 text-subtle" />}
+                  {active && <CornerDownLeft className="h-3.5 w-3.5 text-subtle" />}
                 </button>
               </div>
             )
           })}
+        </div>
+        <div className="flex items-center gap-4 border-t border-line bg-surface-2/40 px-4 py-2 text-[11px] text-subtle">
+          <span className="flex items-center gap-1.5"><span className="kbd">↑</span><span className="kbd">↓</span> Navigate</span>
+          <span className="flex items-center gap-1.5"><span className="kbd">↵</span> Open</span>
+          <span className="ml-auto flex items-center gap-1.5"><span className="kbd">Esc</span> Close</span>
         </div>
       </div>
     </div>,

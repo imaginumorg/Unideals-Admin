@@ -47,9 +47,12 @@ const AdminLayout = () => {
         />
         <div className="min-w-0 flex-1">
           <Navbar onMenuClick={() => setSidebarOpen(true)} />
-          <main className="mx-auto w-full max-w-[1480px] px-4 py-6 lg:px-8 lg:py-8">
+          <main className="mx-auto w-full max-w-[1400px] px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
             <Suspense fallback={<Loader />}>
-              <Outlet />
+              {/* Keyed on path (not query) so filters don't replay the entrance. */}
+              <div key={location.pathname} className="animate-page">
+                <Outlet />
+              </div>
             </Suspense>
           </main>
         </div>

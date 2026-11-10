@@ -54,18 +54,18 @@ const ProfileMenu = () => {
         onClick={() => setOpenPath(isOpen ? null : location.pathname)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex items-center gap-2.5 rounded-xl p-1 transition hover:bg-surface-2 sm:pr-2.5"
+        className={cx(
+          'flex h-8 items-center gap-2 rounded-lg pr-1 pl-0.5 transition-colors hover:bg-surface-2 md:pr-2',
+          isOpen && 'bg-surface-2',
+        )}
       >
-        <Avatar src={admin.avatar} name={admin.name} initials={admin.initials} className="h-8 w-8 text-[11px]" />
-        <span className="hidden min-w-0 text-left md:block">
-          <span className="block max-w-[140px] truncate text-[13px] leading-tight font-semibold text-fg">{admin.name}</span>
-          <span className="block text-[11px] leading-tight text-muted">{admin.roleLabel}</span>
-        </span>
-        <ChevronDown className="hidden h-4 w-4 text-subtle md:block" />
+        <Avatar src={admin.avatar} name={admin.name} initials={admin.initials} className="h-7 w-7 text-[10.5px]" />
+        <span className="hidden max-w-[140px] truncate text-[13px] font-medium text-fg md:block">{admin.name}</span>
+        <ChevronDown className={cx('hidden h-3.5 w-3.5 text-subtle transition-transform md:block', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
-        <div role="menu" className="pop animate-pop-in absolute top-full right-0 z-50 mt-2 w-64 p-1.5">
+        <div role="menu" className="pop animate-pop-in absolute top-full right-0 z-50 mt-2 w-64 p-1">
           <div className="flex items-center gap-3 px-2.5 py-2.5">
             <Avatar src={admin.avatar} name={admin.name} initials={admin.initials} className="h-10 w-10 text-xs" />
             <div className="min-w-0">
@@ -83,13 +83,13 @@ const ProfileMenu = () => {
             type="button"
             role="menuitem"
             onClick={() => navigate('/profile')}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-fg-2 transition hover:bg-surface-2 hover:text-fg"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-fg-2 transition hover:bg-surface-2 hover:text-fg"
           >
             <UserCircle2 className="h-4 w-4 text-muted" /> My profile
           </button>
 
           <div className="my-1 h-px bg-line" />
-          <p className="eyebrow px-2.5 pt-1.5 pb-1">Appearance</p>
+          <p className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-subtle">Appearance</p>
           {THEME_CHOICES.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
@@ -98,7 +98,7 @@ const ProfileMenu = () => {
               aria-checked={preference === value}
               onClick={() => setTheme(value)}
               className={cx(
-                'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2',
+                'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition hover:bg-surface-2',
                 preference === value ? 'text-fg' : 'text-fg-2',
               )}
             >
@@ -112,7 +112,7 @@ const ProfileMenu = () => {
             type="button"
             role="menuitem"
             onClick={handleLogout}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-danger transition hover:bg-danger-soft"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-danger transition hover:bg-danger-soft"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>

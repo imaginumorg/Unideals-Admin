@@ -55,75 +55,78 @@ const Login = () => {
 
   return (
     <main className="relative flex min-h-dvh bg-canvas">
-      {/* Brand panel */}
-      <section className="relative hidden w-[46%] max-w-[680px] overflow-hidden bg-gradient-to-br from-[#2f35f4] via-[#4B45FF] to-[#7472f5] p-10 text-white lg:flex lg:flex-col xl:p-14">
+      {/* Brand panel: always dark, a restrained indigo glow and faint grid. */}
+      <section className="relative hidden w-[44%] max-w-[640px] flex-col overflow-hidden border-r border-white/[0.06] bg-[#08080b] p-10 text-white lg:flex xl:p-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)',
-            backgroundSize: '44px 44px',
-            maskImage: 'radial-gradient(ellipse at 30% 20%, black 20%, transparent 75%)',
+            background:
+              'radial-gradient(60% 50% at 20% 0%, rgba(91,86,255,0.22) 0%, transparent 70%), radial-gradient(40% 40% at 100% 100%, rgba(91,86,255,0.10) 0%, transparent 70%)',
           }}
         />
-        <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-32 h-[420px] w-[420px] rounded-full bg-white/10 blur-3xl" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse at 30% 10%, black 10%, transparent 70%)',
+          }}
+        />
 
-        <div className="relative flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-lg shadow-black/10">
-            <img src="/unideals-logo.svg" alt="" className="h-8 w-8 object-contain" />
+        <div className="relative flex items-center gap-2.5">
+          <img src="/unideals-logo.svg" alt="" className="h-8 w-8 object-contain" />
+          <span className="font-brand text-lg font-bold tracking-tight">Unideals</span>
+          <span className="rounded border border-white/15 px-1.5 py-px text-[10px] font-medium tracking-wide text-white/60 uppercase">
+            Admin
           </span>
-          <div>
-            <p className="text-lg leading-tight font-bold">Unideals</p>
-            <p className="text-[11px] font-semibold tracking-[0.2em] text-white/70 uppercase">Admin Console</p>
-          </div>
         </div>
 
-        <div className="relative mt-auto mb-auto max-w-md pt-16">
-          <h1 className="text-[40px] leading-[1.08] font-extrabold tracking-tight xl:text-5xl">
+        <div className="relative my-auto max-w-[440px] py-16">
+          <h1 className="text-[34px] leading-[1.12] font-semibold tracking-[-0.03em] text-white xl:text-[40px]">
             Run the campus marketplace with confidence.
           </h1>
-          <p className="mt-4 text-[15px] leading-relaxed text-white/75">
+          <p className="mt-4 text-[15px] leading-relaxed text-white/60">
             One workspace for the Unideals team to keep buying and selling safe for every student.
           </p>
 
-          <ul className="mt-10 space-y-3">
+          <ul className="mt-10 space-y-5">
             {HIGHLIGHTS.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex gap-3.5 rounded-2xl bg-white/[0.08] p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15">
-                  <Icon className="h-[18px] w-[18px]" />
+              <li key={title} className="flex gap-3.5">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                  <Icon className="h-4 w-4 text-[#a9a6ff]" />
                 </span>
                 <span>
-                  <span className="block text-sm font-semibold">{title}</span>
-                  <span className="block text-[13px] text-white/70">{text}</span>
+                  <span className="block text-sm font-medium text-white">{title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-5 text-white/55">{text}</span>
                 </span>
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/60">© {new Date().getFullYear()} Imaginum · Authorized staff only</p>
+        <p className="relative text-xs text-white/40">© {new Date().getFullYear()} Imaginum · Authorized staff only</p>
       </section>
 
       {/* Form */}
       <section className="relative flex flex-1 flex-col">
-        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 opacity-30 [mask-image:radial-gradient(ellipse_at_top,black,transparent_65%)]" />
 
         <div className="relative flex items-center justify-between p-5 sm:p-6">
           <div className="flex items-center gap-2.5 lg:invisible">
-            <img src="/unideals-logo.svg" alt="" className="h-9 w-9 object-contain" />
-            <span className="text-[15px] font-bold text-fg">Unideals Admin</span>
+            <img src="/unideals-logo.svg" alt="" className="h-8 w-8 object-contain" />
+            <span className="font-brand text-[15px] font-bold tracking-tight text-fg">Unideals</span>
+            <span className="rounded border border-line px-1.5 py-px text-[10px] font-medium tracking-wide text-muted uppercase">Admin</span>
           </div>
           <ThemeToggle />
         </div>
 
         <div className="relative flex flex-1 items-center justify-center px-5 pb-16">
-          <form onSubmit={handleSubmit} noValidate className="w-full max-w-[400px]">
-            <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" /> Staff sign in
-            </span>
-            <h2 className="mt-5 text-[28px] leading-tight font-bold tracking-tight text-fg">Welcome back</h2>
-            <p className="mt-1.5 text-sm text-muted">Sign in with your admin or support account.</p>
+          <form onSubmit={handleSubmit} noValidate className="w-full max-w-[380px]">
+            <h2 className="text-2xl leading-8 font-semibold tracking-[-0.025em] text-fg">Sign in to Admin</h2>
+            <p className="mt-1.5 text-[13px] text-muted">Use your Unideals admin or support account.</p>
 
             {error && (
               <InlineAlert className="mt-6" tone="danger">
@@ -143,18 +146,18 @@ const Login = () => {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@unideals.in"
-                    className="input h-11 pl-10"
+                    className="input h-10 pl-10"
                   />
                 </div>
               </label>
 
               <label className="block">
                 <span className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-fg-2">Password</span>
+                  <span className="text-xs font-medium text-fg-2">Password</span>
                   <button
                     type="button"
                     onClick={() => setShowRecovery((value) => !value)}
-                    className="text-xs font-semibold text-brand-fg hover:underline"
+                    className="text-xs font-medium text-muted transition-colors hover:text-fg"
                   >
                     Forgot password?
                   </button>
@@ -167,7 +170,7 @@ const Login = () => {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="••••••••"
-                    className="input h-11 pr-11 pl-10"
+                    className="input h-10 pr-11 pl-10"
                   />
                   <button
                     type="button"
@@ -188,7 +191,7 @@ const Login = () => {
               )}
             </div>
 
-            <button type="submit" disabled={submitting} className="btn btn-primary mt-6 h-11 w-full text-[15px]">
+            <button type="submit" disabled={submitting} className="btn btn-primary mt-6 h-10 w-full text-sm">
               {submitting ? (
                 <>
                   <Spinner /> Signing in…

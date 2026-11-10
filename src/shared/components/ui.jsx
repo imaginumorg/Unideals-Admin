@@ -1,26 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
-import { memo, useEffect, useId, useRef } from 'react'
+import { memo, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AlertTriangle, ChevronLeft, ChevronRight, Inbox, RefreshCw, Search, X } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox, RefreshCw, Search, X } from 'lucide-react'
 import BrandLoader from './BrandLoader'
 
 export const cx = (...parts) => parts.filter(Boolean).join(' ')
 
 /* ─── Layout ──────────────────────────────────────────────────────────── */
 
-export const PageHeader = memo(({ title, description, icon: Icon, actions, children }) => (
-  <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-    <div className="flex min-w-0 items-start gap-3.5">
-      {Icon && (
-        <span className="mt-0.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-brand-fg sm:flex">
-          <Icon className="h-5 w-5" />
-        </span>
-      )}
-      <div className="min-w-0">
-        <h1 className="text-[22px] font-bold tracking-tight text-fg md:text-2xl">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-        {children}
-      </div>
+/**
+ * Page title block. The `icon` prop is accepted for compatibility but not
+ * rendered: the breadcrumb already says where you are, and an icon tile per
+ * page read as template chrome.
+ */
+export const PageHeader = memo(({ title, description, actions, children }) => (
+  <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="min-w-0">
+      <h1 className="text-xl leading-7 font-semibold tracking-[-0.02em] text-fg md:text-[22px]">{title}</h1>
+      {description && <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted">{description}</p>}
+      {children}
     </div>
     {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
   </div>
@@ -33,15 +31,11 @@ export const Card = ({ className, children, ...rest }) => (
 )
 
 export const CardHeader = ({ title, description, icon: Icon, actions, className }) => (
-  <div className={cx('flex items-center justify-between gap-3 border-b border-line px-5 py-4', className)}>
-    <div className="flex min-w-0 items-center gap-3">
-      {Icon && (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-fg">
-          <Icon className="h-4 w-4" />
-        </span>
-      )}
+  <div className={cx('flex min-h-[52px] items-center justify-between gap-3 border-b border-line px-5 py-3', className)}>
+    <div className="flex min-w-0 items-center gap-2.5">
+      {Icon && <Icon className="h-4 w-4 shrink-0 text-subtle" />}
       <div className="min-w-0">
-        <h2 className="truncate text-[15px] font-semibold text-fg">{title}</h2>
+        <h2 className="truncate text-sm font-semibold text-fg">{title}</h2>
         {description && <p className="truncate text-xs text-muted">{description}</p>}
       </div>
     </div>
@@ -67,12 +61,12 @@ export const toneClass = (tone = 'neutral') => TONES[tone] || TONES.neutral
 export const Badge = memo(({ tone = 'neutral', dot = false, className, children }) => (
   <span
     className={cx(
-      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap capitalize',
+      'inline-flex h-[22px] items-center gap-1.5 rounded-md px-2 text-[11.5px] leading-none font-medium whitespace-nowrap capitalize',
       toneClass(tone),
       className,
     )}
   >
-    {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+    {dot && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />}
     {children}
   </span>
 ))
@@ -121,35 +115,56 @@ export const StatusBadge = memo(({ status, label }) => {
 
 /* ─── Metrics ─────────────────────────────────────────────────────────── */
 
+/**
+ * KPI tile: label, one big number, a small trend/hint line. The icon is a
+ * quiet glyph in the tone color (no tinted tile) so the number leads.
+ */
 export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, trend, onClick, loading }) => {
   const Wrapper = onClick ? 'button' : 'div'
   const trendDown = typeof trend === 'string' && trend.startsWith('-')
+  const TrendIcon = trendDown ? ArrowDownRight : ArrowUpRight
+  const iconColor = {
+    brand: 'text-brand-fg',
+    success: 'text-success',
+    warning: 'text-warning',
+    danger: 'text-danger',
+    info: 'text-info',
+    violet: 'text-violet',
+    pink: 'text-pink',
+    neutral: 'text-subtle',
+  }[tone] || 'text-subtle'
   return (
     <Wrapper
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       className={cx(
-        'card flex w-full flex-col p-4 text-left transition',
-        onClick && 'hover:border-line-strong hover:bg-surface-2/40',
+        'card group flex w-full min-w-0 flex-col px-5 py-4 text-left',
+        onClick && 'transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/50',
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] font-medium text-muted">{label}</p>
-        {Icon && (
-          <span className={cx('flex h-8 w-8 items-center justify-center rounded-lg', toneClass(tone))}>
-            <Icon className="h-4 w-4" />
-          </span>
-        )}
+        <p className="truncate text-[13px] font-medium text-muted">{label}</p>
+        {Icon && <Icon className={cx('h-4 w-4 shrink-0 opacity-80', iconColor)} />}
       </div>
       {loading ? (
-        <div className="mt-3 h-8 w-24 animate-pulse rounded-lg bg-surface-3" />
+        <div className="skeleton mt-3 h-7 w-24 rounded-md" />
       ) : (
-        <p className="mt-2 truncate text-[26px] leading-tight font-bold tracking-tight text-fg tabular-nums" title={String(value)}>{value}</p>
+        <p className="mt-2 truncate text-[26px] leading-8 font-semibold tracking-[-0.025em] text-fg tabular-nums" title={String(value)}>
+          {value}
+        </p>
       )}
       {(trend || hint) && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+        <p className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted">
           {trend && (
-            <span className={cx('font-semibold', trendDown ? 'text-danger' : 'text-success')}>{trend}</span>
+            <span
+              className={cx(
+                'inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-px font-medium tabular-nums',
+                trendDown ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success',
+              )}
+            >
+              <TrendIcon className="h-3 w-3" />
+              {trend.replace(/^[+-]/, '')}
+            </span>
           )}
           {hint && <span className="min-w-0 truncate">{hint}</span>}
         </p>
@@ -163,15 +178,16 @@ export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, 
 // Small inline loader for buttons: the Unideals "U" in the text colour.
 export const Spinner = ({ className }) => <BrandLoader size="xs" tone="current" className={className} />
 
-export const Skeleton = ({ className }) => <div className={cx('animate-pulse rounded-lg bg-surface-3', className)} />
+export const Skeleton = ({ className }) => <div className={cx('skeleton rounded-md', className)} />
 
 export const TableSkeleton = memo(({ rows = 6, columns = 5 }) => (
-  <div className="divide-y divide-line">
+  <div aria-busy="true" aria-label="Loading">
+    <div className="h-9 border-b border-line" />
     {Array.from({ length: rows }).map((_, row) => (
-      <div key={row} className="flex items-center gap-4 px-4 py-4">
-        <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+      <div key={row} className="flex items-center gap-5 border-b border-line px-5 py-3.5 last:border-b-0">
+        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
         {Array.from({ length: columns - 1 }).map((__, col) => (
-          <Skeleton key={col} className={cx('h-3.5', col === 0 ? 'w-1/4' : 'flex-1')} />
+          <Skeleton key={col} className={cx('h-3', col === 0 ? 'w-1/4' : 'flex-1', col % 2 && 'opacity-70')} />
         ))}
       </div>
     ))}
@@ -179,33 +195,33 @@ export const TableSkeleton = memo(({ rows = 6, columns = 5 }) => (
 ))
 
 export const EmptyState = memo(({ icon: Icon = Inbox, title = 'Nothing here yet', message, action, className }) => (
-  <div className={cx('flex flex-col items-center justify-center px-6 py-14 text-center', className)}>
-    <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted">
-      <Icon className="h-5 w-5" />
+  <div className={cx('flex flex-col items-center justify-center px-6 py-16 text-center', className)}>
+    <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-muted" style={{ boxShadow: 'var(--shadow-button)' }}>
+      <Icon className="h-[18px] w-[18px]" />
     </span>
-    <p className="mt-4 text-sm font-semibold text-fg">{title}</p>
-    {message && <p className="mt-1 max-w-sm text-sm text-muted">{message}</p>}
-    {action && <div className="mt-4">{action}</div>}
+    <p className="mt-4 text-sm font-medium text-fg">{title}</p>
+    {message && <p className="mt-1 max-w-sm text-[13px] leading-5 text-muted">{message}</p>}
+    {action && <div className="mt-5">{action}</div>}
   </div>
 ))
 
 export const ErrorState = memo(({ message, onRetry, className }) => (
-  <div className={cx('flex flex-col items-center justify-center px-6 py-14 text-center', className)}>
-    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-danger-soft text-danger">
-      <AlertTriangle className="h-5 w-5" />
+  <div className={cx('flex flex-col items-center justify-center px-6 py-16 text-center', className)}>
+    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger-soft text-danger">
+      <AlertTriangle className="h-[18px] w-[18px]" />
     </span>
-    <p className="mt-4 text-sm font-semibold text-fg">Couldn't load this data</p>
-    <p className="mt-1 max-w-sm text-sm text-muted">{message || 'The server did not respond. Check the API and try again.'}</p>
+    <p className="mt-4 text-sm font-medium text-fg">Couldn't load this data</p>
+    <p className="mt-1 max-w-sm text-[13px] leading-5 text-muted">{message || 'The server did not respond. Check the API and try again.'}</p>
     {onRetry && (
-      <button type="button" onClick={onRetry} className="btn btn-secondary btn-sm mt-4">
-        <RefreshCw className="h-3.5 w-3.5" /> Retry
+      <button type="button" onClick={onRetry} className="btn btn-secondary btn-sm mt-5">
+        <RefreshCw className="h-3.5 w-3.5" /> Try again
       </button>
     )}
   </div>
 ))
 
 export const InlineAlert = ({ tone = 'danger', children, className }) => (
-  <div className={cx('flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-sm', toneClass(tone), className)}>
+  <div className={cx('flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 text-[13px] leading-5', toneClass(tone), className)}>
     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
     <div className="min-w-0">{children}</div>
   </div>
@@ -215,20 +231,20 @@ export const InlineAlert = ({ tone = 'danger', children, className }) => (
 
 export const SearchInput = ({ value, onChange, placeholder = 'Search…', className, inputRef }) => (
   <div className={cx('relative w-full', className)}>
-    <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-subtle" />
+    <Search className="pointer-events-none absolute top-1/2 left-3 h-[15px] w-[15px] -translate-y-1/2 text-subtle" />
     <input
       ref={inputRef}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="input pr-9 pl-10"
+      className="input pr-8 pl-9"
     />
     {value && (
       <button
         type="button"
         aria-label="Clear search"
         onClick={() => onChange('')}
-        className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-1 text-subtle hover:text-fg"
+        className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-subtle transition-colors hover:bg-surface-3 hover:text-fg"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -263,29 +279,35 @@ export const Field = ({ label, hint, error, children, className }) => {
       {error ? (
         <span className="mt-1.5 block text-xs text-danger">{error}</span>
       ) : hint ? (
-        <span className="mt-1.5 block text-xs text-muted">{hint}</span>
+        <span className="mt-1.5 block text-xs text-subtle">{hint}</span>
       ) : null}
     </label>
   )
 }
 
+/** Segmented control. */
 export const Tabs = ({ tabs, value, onChange, className }) => (
-  <div className={cx('inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-line bg-surface p-1 no-scrollbar', className)}>
+  <div
+    role="tablist"
+    className={cx('inline-flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-line bg-surface-2/70 p-0.5 no-scrollbar', className)}
+  >
     {tabs.map((tab) => {
       const active = tab.value === value
       return (
         <button
           key={tab.value}
           type="button"
+          role="tab"
+          aria-selected={active}
           onClick={() => onChange(tab.value)}
           className={cx(
-            'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-[13px] font-semibold whitespace-nowrap transition',
-            active ? 'bg-surface-3 text-fg shadow-sm' : 'text-muted hover:text-fg',
+            'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow] duration-150',
+            active ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(0,0,0,0.25)] ring-1 ring-line' : 'text-muted hover:text-fg',
           )}
         >
           {tab.label}
           {tab.count !== undefined && tab.count !== null && (
-            <span className={cx('rounded-md px-1.5 text-[11px] tabular-nums', active ? 'bg-brand text-white' : 'bg-surface-2 text-muted')}>
+            <span className={cx('min-w-[18px] rounded px-1 text-center text-[11px] tabular-nums', active ? 'bg-brand-soft text-brand-fg' : 'text-subtle')}>
               {tab.count}
             </span>
           )}
@@ -304,11 +326,16 @@ export const Toggle = ({ checked, onChange, disabled, label }) => (
     disabled={disabled}
     onClick={() => onChange(!checked)}
     className={cx(
-      'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition disabled:opacity-50',
-      checked ? 'bg-brand' : 'bg-surface-3',
+      'relative inline-flex h-[18px] w-8 shrink-0 items-center rounded-full border transition-colors duration-150 disabled:opacity-50',
+      checked ? 'border-brand bg-brand' : 'border-line-strong bg-surface-3',
     )}
   >
-    <span className={cx('h-4 w-4 rounded-full bg-white shadow transition', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
+    <span
+      className={cx(
+        'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-150',
+        checked ? 'translate-x-[14px]' : 'translate-x-[1px]',
+      )}
+    />
   </button>
 )
 
@@ -319,38 +346,37 @@ export const Pagination = memo(({ page = 1, totalPages = 1, total, limit, onPage
   const from = total ? (page - 1) * (limit || 0) + 1 : null
   const to = total && limit ? Math.min(page * limit, total) : null
   return (
-    <div className="flex flex-col gap-3 border-t border-line px-4 py-3 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-      <span>
+    <div className="flex flex-col gap-3 border-t border-line px-5 py-3 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+      <span className="tabular-nums">
         {from && to ? (
           <>
-            Showing <b className="font-semibold text-fg-2">{from}–{to}</b> of{' '}
-            <b className="font-semibold text-fg-2">{total.toLocaleString()}</b>
+            <span className="text-fg-2">{from}–{to}</span> of <span className="text-fg-2">{total.toLocaleString()}</span>
           </>
         ) : (
           <>Page {page} of {totalPages}</>
         )}
       </span>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="btn btn-secondary btn-sm btn-icon h-8 w-8"
+          className="btn btn-secondary btn-sm h-7 w-7 px-0"
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         </button>
-        <span className="min-w-16 text-center font-semibold text-fg-2 tabular-nums">
-          {page} / {Math.max(1, totalPages)}
+        <span className="min-w-14 text-center font-medium text-fg-2 tabular-nums">
+          {page} <span className="text-subtle">/</span> {Math.max(1, totalPages)}
         </span>
         <button
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="btn btn-secondary btn-sm btn-icon h-8 w-8"
+          className="btn btn-secondary btn-sm h-7 w-7 px-0"
           aria-label="Next page"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -358,6 +384,36 @@ export const Pagination = memo(({ page = 1, totalPages = 1, total, limit, onPage
 })
 
 /* ─── Overlays ────────────────────────────────────────────────────────── */
+
+const EXIT_MS = 180
+
+/**
+ * Keeps an overlay mounted for its exit animation. Returns `mounted` (render
+ * or not) and `state` ('open' | 'closed') for the data-state CSS hooks.
+ */
+export const usePresence = (open, duration = EXIT_MS) => {
+  const [mounted, setMounted] = useState(open)
+  if (open && !mounted) setMounted(true)
+  useEffect(() => {
+    if (open) return undefined
+    const timer = window.setTimeout(() => setMounted(false), duration)
+    return () => window.clearTimeout(timer)
+  }, [open, duration])
+  return { mounted: open || mounted, state: open ? 'open' : 'closed' }
+}
+
+/**
+ * While an overlay animates out, its owner has usually already cleared the
+ * data it renders (e.g. `selectedId = null`). Keep showing the last content
+ * from while it was open so the panel doesn't go blank as it leaves.
+ */
+const useLastWhileOpen = (open, value) => {
+  const ref = useRef(value)
+  // eslint-disable-next-line react-hooks/refs
+  if (open) ref.current = value
+  // eslint-disable-next-line react-hooks/refs
+  return open ? value : ref.current
+}
 
 const useEscape = (open, onClose) => {
   useEffect(() => {
@@ -378,28 +434,42 @@ const useEscape = (open, onClose) => {
 export const Dialog = ({ open, onClose, title, description, children, footer, size = 'md' }) => {
   const titleId = useId()
   useEscape(open, onClose)
-  if (!open) return null
-  const width = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
+  const { mounted, state } = usePresence(open)
+  const content = useLastWhileOpen(open, { title, description, children, footer })
+  if (!mounted) return null
+  const width = { sm: 'sm:max-w-[420px]', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' }[size]
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="animate-fade-in absolute inset-0 bg-overlay backdrop-blur-[2px]" />
+    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-6">
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        onClick={open ? onClose : undefined}
+        data-presence="overlay"
+        data-state={state}
+        className="absolute inset-0 bg-overlay backdrop-blur-[3px]"
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={cx('pop animate-pop-in relative flex max-h-[92dvh] w-full flex-col rounded-b-none sm:rounded-2xl', width)}
+        data-presence="dialog"
+        data-state={state}
+        className={cx('pop relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-[14px]', width)}
       >
-        <div className="flex items-start justify-between gap-4 px-5 pt-5">
+        <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-1">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-semibold text-fg">{title}</h2>
-            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+            <h2 id={titleId} className="text-[15px] leading-6 font-semibold text-fg">{content.title}</h2>
+            {content.description && <p className="mt-1 text-[13px] leading-5 text-muted">{content.description}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost btn-icon -mt-1 -mr-2 h-8 w-8">
+          <button type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost -mt-1 -mr-2 h-7 w-7 px-0">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3.5">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{content.children}</div>
+        {content.footer && (
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-surface-2/40 px-5 py-3">{content.footer}</div>
+        )}
       </div>
     </div>,
     document.body,
@@ -432,7 +502,10 @@ export const ConfirmDialog = ({
           type="button"
           onClick={onConfirm}
           disabled={loading}
-          className={cx('btn', tone === 'danger' ? 'bg-danger text-white hover:brightness-110' : 'btn-primary')}
+          className={cx(
+            'btn',
+            tone === 'danger' ? 'bg-danger text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] hover:brightness-110' : 'btn-primary',
+          )}
         >
           {loading && <Spinner />}
           {confirmLabel}
@@ -446,31 +519,43 @@ export const ConfirmDialog = ({
 
 export const Drawer = ({ open, onClose, title, subtitle, children, footer, width = 'max-w-xl' }) => {
   const titleId = useId()
-  const panelRef = useRef(null)
   useEscape(open, onClose)
-  if (!open) return null
+  const { mounted, state } = usePresence(open, 200)
+  const content = useLastWhileOpen(open, { title, subtitle, children, footer })
+  if (!mounted) return null
   return createPortal(
     <div className="fixed inset-0 z-[55] flex justify-end">
-      <button type="button" aria-label="Close" onClick={onClose} className="animate-fade-in absolute inset-0 bg-overlay backdrop-blur-[2px]" />
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        onClick={open ? onClose : undefined}
+        data-presence="overlay"
+        data-state={state}
+        className="absolute inset-0 bg-overlay backdrop-blur-[3px]"
+      />
       <aside
-        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={cx('animate-slide-in relative flex h-full w-full flex-col border-l border-line bg-surface', width)}
+        data-presence="drawer"
+        data-state={state}
+        className={cx('relative flex h-full w-full flex-col border-l border-line bg-surface', width)}
         style={{ boxShadow: 'var(--shadow-pop)' }}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <header className="flex min-h-[60px] items-center justify-between gap-4 border-b border-line px-5 py-3">
           <div className="min-w-0">
-            <h2 id={titleId} className="truncate text-base font-semibold text-fg">{title}</h2>
-            {subtitle && <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>}
+            <h2 id={titleId} className="truncate text-[15px] font-semibold text-fg">{content.title}</h2>
+            {content.subtitle && <p className="mt-0.5 truncate text-xs text-muted">{content.subtitle}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost btn-icon -mr-2 h-8 w-8">
+          <button type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost -mr-2 h-7 w-7 px-0">
             <X className="h-4 w-4" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
-        {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3.5">{footer}</footer>}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{content.children}</div>
+        {content.footer && (
+          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface-2/40 px-5 py-3">{content.footer}</footer>
+        )}
       </aside>
     </div>,
     document.body,
@@ -485,8 +570,8 @@ export const DetailList = ({ items, columns = 2 }) => (
       .filter(Boolean)
       .map((item) => (
         <div key={item.label} className={cx('min-w-0', item.full && 'sm:col-span-2')}>
-          <dt className="text-xs font-medium text-muted">{item.label}</dt>
-          <dd className="mt-1 text-sm font-medium break-words text-fg">{item.value ?? '—'}</dd>
+          <dt className="text-xs text-muted">{item.label}</dt>
+          <dd className="mt-1 text-[13px] font-medium break-words text-fg">{item.value ?? '—'}</dd>
         </div>
       ))}
   </dl>

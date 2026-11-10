@@ -148,7 +148,7 @@ const Jobs = () => {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Jobs" icon={Cpu} value={jobs.length} loading={loading && !data} />
         <StatCard label="Healthy" icon={CheckCircle2} tone="success" value={counts.healthy || 0} loading={loading && !data} />
         <StatCard label="Failing" icon={XCircle} tone="danger" value={counts.failing || 0} loading={loading && !data} />
@@ -157,7 +157,7 @@ const Jobs = () => {
 
       {loading && !data ? (
         <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
         </div>
       ) : error && !data ? (
         <Card><ErrorState message={error} onRetry={refetch} /></Card>
