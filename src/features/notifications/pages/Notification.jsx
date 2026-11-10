@@ -460,7 +460,7 @@ const Notification = () => {
     <div>
       <PageHeader title="Push notifications" description="Broadcast to students on the web app and mobile." icon={Bell} />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="Total sent" icon={Send} value={formatNumber(stats?.totalSent)} loading={!stats} />
         <StatCard label="Delivered" icon={CheckCheck} tone="success" value={formatNumber(stats?.delivered)} hint={stats ? `${stats.deliveredPercent}% of sent` : ''} loading={!stats} />
         <StatCard label="Clicked" icon={MousePointerClick} tone="violet" value={formatNumber(stats?.clicked)} hint={stats ? `${stats.clickedPercent}% of sent` : ''} loading={!stats} />

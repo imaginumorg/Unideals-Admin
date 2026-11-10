@@ -119,7 +119,7 @@ const CommandPalette = ({ open, onClose }) => {
             }}
             onKeyDown={onKeyDown}
             placeholder="Search pages, users, listings, orders…"
-            className="h-[52px] w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-subtle"
+            className="h-[52px] w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-subtle focus-visible:shadow-none"
           />
           <span className="kbd">Esc</span>
         </div>

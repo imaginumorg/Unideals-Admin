@@ -4,6 +4,7 @@ import Loader from '../shared/components/Loader'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import { AttentionProvider } from './AttentionContext'
+import { AnalyticsRangeProvider } from '../shared/context/AnalyticsRangeContext'
 import { useAuth } from '../features/auth/context/AuthContext'
 
 const COLLAPSE_KEY = 'campus_mart_admin_sidebar_collapsed'
@@ -38,6 +39,7 @@ const AdminLayout = () => {
 
   return (
     <AttentionProvider>
+      <AnalyticsRangeProvider>
       <div className="min-h-dvh bg-canvas lg:flex">
         <Sidebar
           open={sidebarOpen}
@@ -57,6 +59,7 @@ const AdminLayout = () => {
           </main>
         </div>
       </div>
+      </AnalyticsRangeProvider>
     </AttentionProvider>
   )
 }

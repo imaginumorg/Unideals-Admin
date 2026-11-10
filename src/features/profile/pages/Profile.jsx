@@ -406,7 +406,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(activity.byTarget || {}).map(([key, count]) => (
                   <div key={key} className="rounded-lg bg-surface-2 px-3 py-2">
-                    <p className="text-[11px] text-muted capitalize">{key}s</p>
+                    <p className="text-[11px] text-muted">{{ user: 'Users', product: 'Listings', order: 'Orders', campus: 'Campuses', report: 'Reports' }[key] || key}</p>
                     <p className="text-sm font-semibold text-fg tabular-nums">{formatNumber(count)}</p>
                   </div>
                 ))}

@@ -14,6 +14,11 @@ import { systemApi } from '../api/jobsApi'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { Badge, Card, CardHeader, ErrorState, PageHeader, Skeleton, Tabs, Toggle, cx, toneClass } from '../../../shared/components/ui'
 import { formatNumber, formatRelative } from '../../../shared/lib/format'
+import { compact } from '../../../shared/charts/primitives'
+import { exportRowsCsv } from '../../../shared/charts/analytics'
+import ColumnChart from '../../../shared/charts/ColumnChart'
+import TrendChart from '../../../shared/charts/TrendChart'
+import BarList from '../../../shared/charts/BarList'
 
 const STATE = {
   operational: { label: 'Operational', tone: 'success', icon: CheckCircle2 },
@@ -42,72 +47,28 @@ const formatUptime = (seconds) => {
 
 const ms = (value) => (value === null || value === undefined ? '—' : `${formatNumber(value)} ms`)
 
-/* ─── Traffic chart ─────────────────────────────────────────────────────
- * Requests per minute as bars; failed (5xx) requests are the red segment
- * at the base of each bar. Legend always shown (2 series); hover shows the
- * exact minute. The per-area table below is the table view of this data. */
-const TrafficChart = ({ series }) => {
-  const [hover, setHover] = useState(null)
-  const max = Math.max(1, ...series.map((point) => point.requests))
-  const width = 100 / series.length
-  const height = 140
+const timeOf = (iso) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
-  return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-muted">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-chart-1" /> Requests</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-chart-error" /> Failed (5xx)</span>
-        <span className="ml-auto">Peak {formatNumber(max)}/min</span>
-      </div>
-      <div className="relative" style={{ height }} onMouseLeave={() => setHover(null)}>
-        {/* recessive gridlines */}
-        {[0, 0.5, 1].map((f) => (
-          <div key={f} className="pointer-events-none absolute right-0 left-0 border-t border-line" style={{ bottom: `${f * 100}%` }} />
-        ))}
-        <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
-          {series.map((point, index) => {
-            const total = (point.requests / max) * (height - 4)
-            const failed = (point.serverErrors / max) * (height - 4)
-            const x = index * width + width * 0.15
-            const w = width * 0.7
-            return (
-              <g key={point.minute} opacity={hover === null || hover === index ? 1 : 0.45}>
-                {total > 0 && <rect x={x} y={height - total} width={w} height={total} rx="0.6" className="fill-chart-1" />}
-                {/* 2px surface gap between the stacked segments */}
-                {failed > 0 && (
-                  <rect x={x} y={height - failed} width={w} height={Math.max(failed, 1.5)} className="fill-chart-error stroke-surface" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                )}
-              </g>
-            )
-          })}
-        </svg>
-        {/* hit targets wider than the marks */}
-        <div className="absolute inset-0 flex">
-          {series.map((point, index) => (
-            <div key={point.minute} className="h-full flex-1" onMouseEnter={() => setHover(index)} />
-          ))}
-        </div>
-        {hover !== null && series[hover] && (
-          <div
-            className="pop pointer-events-none absolute -top-2 z-10 w-44 -translate-x-1/2 -translate-y-full px-3 py-2 text-xs"
-            style={{ left: `${Math.min(88, Math.max(12, (hover + 0.5) * width))}%` }}
-          >
-            <p className="font-semibold text-fg">
-              {new Date(series[hover].minute).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
-            </p>
-            <p className="mt-1 flex justify-between text-fg-2"><span>Requests</span><span className="tabular-nums">{series[hover].requests}</span></p>
-            <p className="flex justify-between text-fg-2"><span>Failed</span><span className="tabular-nums">{series[hover].serverErrors}</span></p>
-            <p className="flex justify-between text-fg-2"><span>p95</span><span className="tabular-nums">{ms(series[hover].p95)}</span></p>
-          </div>
-        )}
-      </div>
-      <div className="mt-1.5 flex justify-between text-[11px] text-subtle">
-        <span>{series.length} min ago</span>
-        <span>now</span>
-      </div>
-    </div>
-  )
-}
+// Per-minute traffic → rows for the request and latency charts. Minutes with
+// no requests have no latency (null), which draws as a gap, not as 0 ms.
+const trafficRows = (series) =>
+  series.map((point) => ({
+    label: timeOf(point.minute),
+    title: new Date(point.minute).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
+    ok: Math.max(0, point.requests - point.serverErrors),
+    failed: point.serverErrors,
+    p50: point.requests ? point.p50 ?? null : null,
+    p95: point.requests ? point.p95 ?? null : null,
+  }))
+
+const TRAFFIC_SERIES = [
+  { key: 'ok', label: 'Succeeded', color: 'var(--c-chart-1)' },
+  { key: 'failed', label: 'Failed (5xx)', color: 'var(--c-chart-error)' },
+]
+const LATENCY_SERIES = [
+  { key: 'p50', label: 'Median', color: 'var(--c-cat-6)' },
+  { key: 'p95', label: '95th percentile', color: 'var(--c-cat-2)' },
+]
 
 const ComponentRow = ({ component }) => {
   const state = STATE[component.status] || STATE.degraded
@@ -136,6 +97,7 @@ const ServiceStatus = () => {
   const [windowMinutes, setWindowMinutes] = useState(15)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [rechecking, setRechecking] = useState(false)
+  const [compareBy, setCompareBy] = useState('areas')
 
   const load = useCallback(() => systemApi.getStatus({ window: windowMinutes }), [windowMinutes])
   const { data, loading, refreshing, error, refetch } = useFetch(load)
@@ -264,7 +226,7 @@ const ServiceStatus = () => {
                 {
                   label: 'Failed (5xx)',
                   value: `${traffic.totals.errorRate}%`,
-                  sub: `${formatNumber(traffic.totals.serverErrors)} requests`,
+                  sub: `${formatNumber(traffic.totals.serverErrors)} request${traffic.totals.serverErrors === 1 ? '' : 's'}`,
                   tone: traffic.totals.errorRate >= 5 ? 'text-danger' : 'text-fg',
                 },
                 { label: 'Median response', value: ms(traffic.totals.p50) },
@@ -282,9 +244,85 @@ const ServiceStatus = () => {
               {traffic.totals.requests === 0 ? (
                 <p className="py-8 text-center text-sm text-muted">No API requests in this window yet.</p>
               ) : (
-                <TrafficChart series={traffic.series} />
+                <div className="chart grid gap-8 lg:grid-cols-2">
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <p className="eyebrow">Requests per minute</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          exportRowsCsv(
+                            `api-traffic-${windowMinutes}min.csv`,
+                            ['Minute', 'Requests', 'Failed (5xx)', 'Median ms', 'p95 ms'],
+                            traffic.series.map((p) => [p.minute, p.requests, p.serverErrors, p.p50 ?? '', p.p95 ?? '']),
+                          )
+                        }
+                        className="text-xs font-medium text-brand-fg hover:underline"
+                      >
+                        Export CSV
+                      </button>
+                    </div>
+                    <ColumnChart rows={trafficRows(traffic.series)} series={TRAFFIC_SERIES} format={formatNumber} height={190} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="eyebrow mb-1">Response time</p>
+                    <TrendChart
+                      type="line"
+                      rows={trafficRows(traffic.series)}
+                      series={LATENCY_SERIES}
+                      format={ms}
+                      axisFormat={(v) => `${compact(v)}ms`}
+                      height={190}
+                      brushAt={Infinity}
+                    />
+                  </div>
+                </div>
               )}
             </div>
+
+            {(traffic.areas.length > 0 || groups.core.length > 0) && (
+              <div className="chart border-t border-line p-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="eyebrow">Response-time comparison</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {compareBy === 'areas' ? '95th percentile per API area in this window' : 'Latency of the latest health check per service'}
+                    </p>
+                  </div>
+                  <Tabs
+                    value={compareBy}
+                    onChange={setCompareBy}
+                    tabs={[
+                      { value: 'areas', label: 'API areas' },
+                      { value: 'services', label: 'Services' },
+                    ]}
+                  />
+                </div>
+                {compareBy === 'areas' ? (
+                  traffic.areas.some((a) => a.p95 !== null && a.p95 !== undefined) ? (
+                    <BarList
+                      items={traffic.areas.filter((a) => a.p95 !== null && a.p95 !== undefined).map((a) => ({ key: a.area, label: `/api/${a.area}`, value: a.p95, sub: `${formatNumber(a.requests)} req` }))}
+                      format={ms}
+                      color="var(--c-cat-2)"
+                      valueLabel="Slowest"
+                      limit={6}
+                    />
+                  ) : (
+                    <p className="py-4 text-sm text-muted">No timed requests in this window yet.</p>
+                  )
+                ) : (
+                  <BarList
+                    items={[...groups.core, ...groups.external]
+                      .filter((c) => c.latencyMs !== null && c.latencyMs !== undefined)
+                      .map((c) => ({ key: c.key, label: c.name, value: c.latencyMs, sub: STATE[c.status]?.label }))}
+                    format={ms}
+                    color="var(--c-cat-6)"
+                    valueLabel="Slowest"
+                    limit={10}
+                  />
+                )}
+              </div>
+            )}
 
             {traffic.areas.length > 0 && (
               <div className="overflow-x-auto border-t border-line">

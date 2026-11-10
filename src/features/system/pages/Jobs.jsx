@@ -13,12 +13,21 @@ import {
   ErrorState,
   PageHeader,
   Pagination,
+  Select,
   Skeleton,
   StatCard,
+  Tabs,
   cx,
   toneClass,
 } from '../../../shared/components/ui'
-import { formatDateTime, formatRelative, titleCase } from '../../../shared/lib/format'
+import { formatDateTime, formatNumber, formatRelative, titleCase } from '../../../shared/lib/format'
+import { useAnalyticsRange } from '../../../shared/context/AnalyticsRangeContext'
+import { analyticsApi } from '../../../shared/lib/analyticsApi'
+import { exportRowsCsv, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
+import { ChartCard, ChartsToggle, compact } from '../../../shared/charts/primitives'
+import DateRangeFilter from '../../../shared/charts/DateRangeFilter'
+import ColumnChart from '../../../shared/charts/ColumnChart'
+import TrendChart from '../../../shared/charts/TrendChart'
 
 const HEALTH = {
   healthy: { label: 'Healthy', tone: 'success', icon: CheckCircle2 },
@@ -40,6 +49,52 @@ const summarize = (result) => {
   if (!result || typeof result !== 'object') return '—'
   const parts = Object.entries(result).map(([key, value]) => `${titleCase(key.replace(/([A-Z])/g, ' $1'))} ${value}`)
   return parts.length ? parts.join(' · ') : '—'
+}
+
+const RUN_SERIES = [
+  { key: 'success', label: 'Succeeded', color: 'var(--c-chart-1)' },
+  { key: 'failed', label: 'Failed', color: 'var(--c-chart-error)' },
+]
+
+// Recorded runs per job as a two-part bar; each row opens that job's history.
+const RunsByJob = ({ jobs, selected, onSelect }) => {
+  const max = Math.max(1, ...jobs.map((job) => job.success + job.failed))
+  return (
+    <ul className="space-y-0.5">
+      {jobs.map((job) => {
+        const total = job.success + job.failed
+        return (
+          <li key={job.key}>
+            <button
+              type="button"
+              onClick={() => onSelect(job.key)}
+              aria-pressed={selected === job.key}
+              title={`${job.name}: ${job.success} succeeded, ${job.failed} failed · click to open its history`}
+              className={cx(
+                'w-full rounded-md px-2 py-2 text-left transition-colors duration-150 hover:bg-surface-2',
+                selected === job.key && 'bg-surface-2 ring-1 ring-line-strong',
+              )}
+            >
+              <span className="flex items-center justify-between gap-3 text-[13px]">
+                <span className="truncate text-fg">{job.name}</span>
+                <span className="shrink-0 text-xs text-muted tabular-nums">
+                  {formatNumber(job.success)} ok · <span className={job.failed ? 'font-medium text-danger' : ''}>{formatNumber(job.failed)} failed</span>
+                </span>
+              </span>
+              {total > 0 ? (
+                <span className="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full transition-[width] duration-500 ease-out" style={{ width: `${Math.max(4, (total / max) * 100)}%` }}>
+                  {job.success > 0 && <span className="h-full rounded-full bg-chart-1" style={{ flexGrow: job.success }} />}
+                  {job.failed > 0 && <span className="h-full rounded-full bg-chart-error" style={{ flexGrow: job.failed }} />}
+                </span>
+              ) : (
+                <span className="mt-1 block text-[11px] text-subtle">No recorded runs in this range</span>
+              )}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 const RunHistory = ({ jobKey }) => {
@@ -118,6 +173,38 @@ const Jobs = () => {
 
   const counts = jobs.reduce((acc, job) => ({ ...acc, [job.health]: (acc[job.health] || 0) + 1 }), {})
 
+  // Charts over the shared range (history is kept for 30 days).
+  const { range } = useAnalyticsRange()
+  const [chartsVisible, toggleCharts] = useChartsVisible('jobs')
+  const [interval, setRunsInterval, intervals] = useInterval(range.days)
+  const analytics = useAnalytics(analyticsApi.jobs, { from: range.from, to: range.to, interval }, { enabled: chartsVisible })
+  const runStats = analytics.data
+  const [durationKey, setDurationKey] = useState('')
+  const jobsWithRuns = (runStats?.jobs || []).filter((job) => job.success + job.failed > 0)
+  const durationJob = jobsWithRuns.find((job) => job.key === durationKey) || jobsWithRuns[0]
+  const durationRows = (runStats?.runs || [])
+    .filter((run) => run.key === durationJob?.key)
+    .map((run) => ({
+      label: new Date(run.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      title: formatDateTime(run.at),
+      subtitle: `${run.status === 'failed' ? 'Failed' : 'Succeeded'} · ${run.trigger}`,
+      ms: run.ms,
+    }))
+  const columnRows = runStats
+    ? trendRows({ buckets: runStats.buckets, interval: runStats.interval }, []).map((row, i) => ({
+        ...row,
+        success: runStats.series.success[i],
+        failed: runStats.series.failed[i],
+      }))
+    : []
+  const totalRuns = runStats ? runStats.series.success.reduce((a, b) => a + b, 0) + runStats.series.failed.reduce((a, b) => a + b, 0) : 0
+
+  const openJob = (key) => {
+    setExpanded(key)
+    setDurationKey(key)
+    window.requestAnimationFrame(() => document.getElementById(`job-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   const runNow = async () => {
     setRunning(true)
     const response = await jobsApi.runNow(confirmJob.key)
@@ -132,6 +219,7 @@ const Jobs = () => {
       })
     }
     refetch()
+    if (chartsVisible) analytics.refetch()
     refreshAttention()
   }
 
@@ -142,18 +230,121 @@ const Jobs = () => {
         description="Scheduled tasks the server runs on its own. Times are server time."
         icon={Cpu}
         actions={
-          <button type="button" onClick={refetch} className="btn btn-secondary">
-            <RefreshCw className={cx('h-4 w-4', refreshing && 'animate-spin')} /> Refresh
-          </button>
+          <>
+            {chartsVisible && <DateRangeFilter />}
+            <ChartsToggle visible={chartsVisible} onToggle={toggleCharts} />
+            <button
+              type="button"
+              onClick={() => {
+                refetch()
+                if (chartsVisible) analytics.refetch()
+              }}
+              className="btn btn-secondary"
+            >
+              <RefreshCw className={cx('h-4 w-4', refreshing && 'animate-spin')} /> Refresh
+            </button>
+          </>
         }
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="Jobs" icon={Cpu} value={jobs.length} loading={loading && !data} />
         <StatCard label="Healthy" icon={CheckCircle2} tone="success" value={counts.healthy || 0} loading={loading && !data} />
         <StatCard label="Failing" icon={XCircle} tone="danger" value={counts.failing || 0} loading={loading && !data} />
         <StatCard label="Overdue" icon={Hourglass} tone="warning" value={counts.overdue || 0} hint="No run in over twice its interval" loading={loading && !data} />
       </div>
+
+      {chartsVisible && (
+        <div className="mb-6 space-y-6">
+          <div className="grid gap-6 xl:grid-cols-5">
+            <ChartCard
+              className="xl:col-span-3"
+              title="Runs over time"
+              description={`Recorded runs · ${range.span}`}
+              loading={analytics.loading && !runStats}
+              refreshing={analytics.refreshing}
+              error={!runStats ? analytics.error : ''}
+              onRetry={analytics.refetch}
+              empty={runStats && totalRuns === 0}
+              emptyTitle="No recorded runs"
+              emptyMessage="History is kept for 30 days, and frequent jobs only record runs that changed something or failed."
+              onExport={() =>
+                exportRowsCsv(
+                  `job-runs-${range.from}-to-${range.to}.csv`,
+                  ['Period start', 'Period end', 'Succeeded', 'Failed'],
+                  runStats.buckets.map((b, i) => [b.from, b.to, runStats.series.success[i], runStats.series.failed[i]]),
+                )
+              }
+              actions={intervals.length > 1 && <Tabs value={interval} onChange={setRunsInterval} tabs={intervalTabs(intervals)} />}
+              height={220}
+            >
+              <ColumnChart rows={columnRows} series={RUN_SERIES} format={formatNumber} />
+            </ChartCard>
+
+            <ChartCard
+              className="xl:col-span-2"
+              title="Runs by job"
+              description="Click a job to open its run history"
+              loading={analytics.loading && !runStats}
+              refreshing={analytics.refreshing}
+              error={!runStats ? analytics.error : ''}
+              onRetry={analytics.refetch}
+              empty={runStats && runStats.jobs.length === 0}
+              emptyTitle="No jobs registered"
+              onExport={() =>
+                exportRowsCsv(
+                  `runs-by-job-${range.from}-to-${range.to}.csv`,
+                  ['Job', 'Succeeded', 'Failed', 'Average ms', 'Longest ms'],
+                  runStats.jobs.map((j) => [j.name, j.success, j.failed, j.avgMs ?? '', j.maxMs ?? '']),
+                )
+              }
+              height={220}
+            >
+              <RunsByJob jobs={runStats?.jobs || []} selected={expanded} onSelect={openJob} />
+            </ChartCard>
+          </div>
+
+          <ChartCard
+            title="Execution time"
+            description={durationJob ? `${durationJob.name} · each recorded run${durationJob.avgMs !== null ? ` · average ${formatDuration(durationJob.avgMs)}` : ''}` : 'Duration of each recorded run'}
+            loading={analytics.loading && !runStats}
+            refreshing={analytics.refreshing}
+            error={!runStats ? analytics.error : ''}
+            onRetry={analytics.refetch}
+            empty={runStats && durationRows.length === 0}
+            emptyTitle="No timed runs"
+            emptyMessage="Durations appear once a job has recorded runs in this range."
+            onExport={() =>
+              exportRowsCsv(
+                `job-durations-${durationJob?.key || 'none'}-${range.from}-to-${range.to}.csv`,
+                ['Started', 'Status', 'Trigger', 'Duration ms'],
+                (runStats?.runs || []).filter((r) => r.key === durationJob?.key).map((r) => [r.at, r.status, r.trigger, r.ms]),
+              )
+            }
+            actions={
+              jobsWithRuns.length > 1 && (
+                <Select
+                  label="Job"
+                  value={durationJob?.key || ''}
+                  onChange={setDurationKey}
+                  options={jobsWithRuns.map((job) => ({ value: job.key, label: job.name }))}
+                  className="h-7 w-44 text-xs sm:w-56"
+                />
+              )
+            }
+            height={200}
+          >
+            <TrendChart
+              type="line"
+              rows={durationRows}
+              series={[{ key: 'ms', label: 'Duration', color: 'var(--c-cat-6)' }]}
+              format={formatDuration}
+              axisFormat={(v) => (v >= 1000 ? `${compact(v / 1000)}s` : `${v}ms`)}
+              height={200}
+            />
+          </ChartCard>
+        </div>
+      )}
 
       {loading && !data ? (
         <div className="space-y-3">
@@ -170,7 +361,7 @@ const Jobs = () => {
             const HealthIcon = health.icon
             const isOpen = expanded === job.key
             return (
-              <Card key={job.key} className={cx('overflow-hidden', job.health === 'failing' && 'border-danger/40')}>
+              <Card key={job.key} id={`job-${job.key}`} className={cx('scroll-mt-20 overflow-hidden', job.health === 'failing' && 'border-danger/40')}>
                 <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-start gap-3.5">
                     <span className={cx('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', toneClass(health.tone))}>

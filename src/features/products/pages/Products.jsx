@@ -22,11 +22,20 @@ import {
   TableSkeleton,
   Tabs,
 } from '../../../shared/components/ui'
-import { downloadCsv, formatCurrency, formatDate, titleCase } from '../../../shared/lib/format'
+import { downloadCsv, formatCurrency, formatDate, formatNumber, titleCase } from '../../../shared/lib/format'
+import { useAnalyticsRange } from '../../../shared/context/AnalyticsRangeContext'
+import { analyticsApi } from '../../../shared/lib/analyticsApi'
+import { exportRowsCsv, exportTrendCsv, hasAny, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
+import { ChartCard, ChartsToggle, statusColor } from '../../../shared/charts/primitives'
+import DateRangeFilter from '../../../shared/charts/DateRangeFilter'
+import Donut from '../../../shared/charts/Donut'
+import BarList from '../../../shared/charts/BarList'
+import TrendChart from '../../../shared/charts/TrendChart'
 
 const PAGE_SIZE = 12
 const FILTER_DEFAULTS = { search: '', status: 'all', category: 'all', campus: 'all' }
 const STATUS_TABS = ['all', 'listed', 'draft', 'unlisted', 'blocked', 'sold']
+const CHART_STATUSES = STATUS_TABS.slice(1)
 
 // "review" is a virtual tab: listings auto-hidden by the report threshold.
 const BULK_ACTIONS = {
@@ -70,6 +79,31 @@ const Products = () => {
   const counts = data?.statusCounts
   const selection = useSelection(products)
 
+  // Charts: status mix reuses the list's own counts (same filters as the
+  // table, no extra request); categories follow the status + campus filters.
+  const { range } = useAnalyticsRange()
+  const [chartsVisible, toggleCharts] = useChartsVisible('products')
+  const categories = useAnalytics(
+    analyticsApi.breakdown,
+    {
+      dims: 'listingCategory',
+      listingStatus: filters.status === 'all' ? '' : filters.status,
+      campus: filters.campus === 'all' ? '' : filters.campus,
+    },
+    { enabled: chartsVisible },
+  )
+  const [postedInterval, setPostedInterval, postedIntervals] = useInterval(range.days)
+  const posted = useAnalytics(
+    analyticsApi.trends,
+    { from: range.from, to: range.to, compareFrom: range.compareFrom, compareTo: range.compareTo, metrics: 'listings', interval: postedInterval },
+    { enabled: chartsVisible },
+  )
+  const statusDonut = CHART_STATUSES.map((key) => ({ key, label: titleCase(key), value: counts?.[key] || 0, color: statusColor(key) }))
+  const categoryItems = (categories.data?.data?.listingCategory || []).map((row) => ({ key: row.key, label: titleCase(row.key), value: row.count }))
+  const refreshCharts = () => {
+    if (chartsVisible) categories.refetch()
+  }
+
   const runBulk = async (reason) => {
     const response = await bulkProducts(selection.selectedIds, bulkAction, reason)
     if (!response.success) {
@@ -79,6 +113,7 @@ const Products = () => {
     showToast({ type: response.data.failed ? 'info' : 'success', message: response.message })
     selection.clear()
     refetch()
+    refreshCharts()
     refreshAttention()
     return response.data
   }
@@ -97,11 +132,80 @@ const Products = () => {
         description="Everything students have put up for sale."
         icon={Package}
         actions={
-          <button type="button" onClick={exportCsv} disabled={!products.length} className="btn btn-secondary">
-            <Download className="h-4 w-4" /> Export page
-          </button>
+          <>
+            {chartsVisible && <DateRangeFilter />}
+            <ChartsToggle visible={chartsVisible} onToggle={toggleCharts} />
+            <button type="button" onClick={exportCsv} disabled={!products.length} className="btn btn-secondary">
+              <Download className="h-4 w-4" /> Export page
+            </button>
+          </>
         }
       />
+
+      {chartsVisible && (
+        <div className="mb-6 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <ChartCard
+            title="Status"
+            description="Matches the table's search and filters · click to filter"
+            loading={loading && !data}
+            empty={data && statusDonut.every((d) => !d.value)}
+            emptyMessage="No listings match these filters."
+            onExport={() => exportRowsCsv('listings-by-status.csv', ['Status', 'Listings'], statusDonut.map((d) => [d.label, d.value]))}
+            height={168}
+          >
+            <Donut
+              data={statusDonut}
+              centerLabel="Listings"
+              selected={CHART_STATUSES.includes(filters.status) ? filters.status : null}
+              onSelect={(key) => setFilter('status', key || 'all')}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Categories"
+            description={filters.status === 'all' && filters.campus === 'all' ? 'All listings · click to filter' : 'For the selected status and campus · click to filter'}
+            loading={categories.loading && !categories.data}
+            refreshing={categories.refreshing}
+            error={!categories.data ? categories.error : ''}
+            onRetry={categories.refetch}
+            empty={categories.data && categoryItems.length === 0}
+            emptyMessage="No listings for this status and campus."
+            onExport={() => exportRowsCsv('listings-by-category.csv', ['Category', 'Listings'], categoryItems.map((c) => [c.label, c.value]))}
+            height={200}
+          >
+            <BarList
+              items={categoryItems}
+              limit={6}
+              selected={filters.category === 'all' ? null : filters.category}
+              onSelect={(key) => setFilter('category', key || 'all')}
+              valueLabel="Count"
+            />
+          </ChartCard>
+
+          <ChartCard
+            className="lg:col-span-2 xl:col-span-1"
+            title="Listings posted"
+            description={`${range.label} · vs ${range.compareLabel}`}
+            loading={posted.loading && !posted.data}
+            refreshing={posted.refreshing}
+            error={!posted.data ? posted.error : ''}
+            onRetry={posted.refetch}
+            empty={posted.data && !hasAny(posted.data, ['listings'])}
+            emptyMessage="No listings were posted in this range."
+            onExport={() => exportTrendCsv(`listings-posted-${range.from}-to-${range.to}.csv`, posted.data, [{ key: 'listings', label: 'Listings posted' }])}
+            actions={postedIntervals.length > 1 && <Tabs value={postedInterval} onChange={setPostedInterval} tabs={intervalTabs(postedIntervals)} />}
+            height={200}
+          >
+            <TrendChart
+              rows={trendRows(posted.data, ['listings'])}
+              series={[{ key: 'listings', label: 'Posted', color: 'var(--c-chart-1)', total: posted.data ? formatNumber(posted.data.totals.listings) : undefined }]}
+              format={formatNumber}
+              showPrevious
+              height={180}
+            />
+          </ChartCard>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <div className="space-y-3 border-b border-line p-4">
@@ -243,6 +347,7 @@ const Products = () => {
         onClose={() => setSelectedId(null)}
         onChanged={() => {
           refetch()
+          refreshCharts()
           refreshAttention()
         }}
       />

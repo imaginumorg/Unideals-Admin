@@ -40,15 +40,45 @@ Support staff see the same screens; action buttons a role can't use are hidden o
 - **Bulk actions**: tick rows (or the header box for the whole page), then pick an action from the bar at the bottom. Up to 100 at a time. If some items fail, you see which ones and why; the rest still go through.
 - **Theme**: dark by default. Switch to light or system from the profile menu.
 
+## Charts and date range
+
+Dashboard, Listings, Orders, Reports, Audit log, Service status and Background jobs have charts built from live data.
+
+- **Date range** (top right): Today, Last 7 days, Last 30 days, This month, Last month, Last 3 months, This year, or a custom range of up to 3 years. The choice is shared across pages and remembered in this browser.
+- **Comparisons:**
+  - "This month" is compared with the same days last month, and "This year" with the same period last year.
+  - The other ranges are compared with the period just before.
+  - A trend is left blank when the earlier period has nothing to compare against.
+- **Daily / Weekly / Monthly** switches the grouping when the range allows it. A partial first or last week is labelled as partial.
+- **Compare** draws the earlier period as a dashed line.
+- **Hover** any chart for exact values.
+- **Click a legend entry** to hide or show a series.
+- **Drag the handles** under long charts to zoom in.
+- **Clicking a donut segment, legend row or bar filters the list below it** (or opens the filtered list from the Dashboard). Click it again to clear the filter.
+- **Download icon** exports a chart's data as CSV.
+- **Hide charts** collapses a page's charts. The choice is remembered per page.
+- A range with no activity shows "No data for this range". Nothing is estimated or filled in.
+
 ## Pages
 
 ### Dashboard
-- Totals for users, live listings and completed deals.
-- **Deal volume (GMV)**: total value of completed deals between students.
-- **Platform revenue**: money paid to Unideals for plans and boosts.
-- Trends compare **this month so far** with the **same days last month**. A card shows no trend when last month has nothing to compare against.
-- *Needs attention*: pending reports, gender requests, suspended accounts, blocked listings. Each opens the filtered list.
-- Users by campus, account health, and the latest staff actions.
+- KPI cards for the chosen range:
+  - new users;
+  - listings posted;
+  - completed deals;
+  - **deal volume (GMV)**: the value of completed deals between students;
+  - **platform revenue**: money paid to Unideals for plans and boosts.
+- Each card shows:
+  - the trend vs the comparison period;
+  - a sparkline (hover for each day's value);
+  - the all-time total;
+  - a link to its page (revenue has no page yet).
+- **Money:** GMV, revenue or completed deals over time, one at a time.
+- **Growth:** sign-ups and new listings.
+- **Listing status** and **Account health** donuts. Click opens the filtered list.
+- **Campus comparison:** users, new users, live or new listings per campus. Click opens that campus's users or listings.
+- *Needs attention*: pending reports, gender requests, auto-hidden listings, failing jobs, suspended accounts, blocked listings. Each opens the filtered list.
+- The latest staff actions.
 
 ### Users
 - Search by name, email or user ID. Filter by status (active / inactive / suspended) and campus.
@@ -74,6 +104,10 @@ Support staff see the same screens; action buttons a role can't use are hidden o
   - reports unfounded → **Make live** (or **Dismiss** on the Reports page), and the seller is told it's back;
   - reports valid → **Block** or **Unlist**.
 - **Bulk:** select listings to Unlist, Block, Make live or Delete together, with one reason for all.
+- **Charts:**
+  - **Status** donut: counts match the table's search and filters. Click a status to filter the table.
+  - **Categories:** for the selected status and campus. Click to filter.
+  - **Listings posted** over the chosen range.
 
 ### Orders
 Orders are deals between two students. Stages:
@@ -88,6 +122,11 @@ Orders are deals between two students. Stages:
 
 - The detail panel shows the item, buyer, seller, pickup location and timeline.
 - **Override stage** is for disputes or stuck deals only. Moving a deal to *Completed* also marks payment and handover as confirmed. Cancelling asks for a reason, which is saved on the deal (students do not see it yet).
+- **Charts:**
+  - **Order volume:** deals started, completed and cancelled over time.
+  - **Deal value:** GMV of completed deals.
+  - **Orders by stage** donut: click to filter.
+  - The stage cards at the top also filter. Click again to clear.
 
 ### Campuses
 - Each campus is its own marketplace. Its **slug is permanent**.
@@ -103,6 +142,12 @@ Orders are deals between two students. Stages:
 - **Block / Unlist / Delete** (listings) and **Suspend** (users) enforce and close the reports in one step. The reason you type is sent to the seller.
 - **Reporters always hear back**: when reports close, each reporter gets an in-app notification saying action was taken, or that no violation was found. Reporters are never told who was actioned or what happened to another user.
 - Help & support requests have a **Reply** button that opens an email to the student.
+- **Charts:**
+  - **Open items by type, priority and reason.** Clicking one filters the queue and adds a removable chip.
+    - Priority follows the badge: high is 5+ reports, medium 2–4, low 1.
+    - An item with several reasons counts under each one.
+  - **Reports over time:** filed vs closed.
+  - **Outcome** of reports filed in the range: still open, action taken, dismissed.
 
 ### Gender requests
 - Gender is set once by the student. Changing it needs approval because it controls Girls Corner access.
@@ -119,6 +164,10 @@ Orders are deals between two students. Stages:
 - Every staff action is recorded permanently. Entries can't be edited or deleted.
 - Filter by action, target type, staff role and date range. **My actions** shows only yours.
 - Click a staff name to see only their actions. Click a row to see the note and details.
+- **Charts** use the same filters as the table.
+  - **Activity timeline:** click a column to narrow the table to that day, week or month.
+  - **By action** and **By staff member:** click to filter.
+  - With no From/To set, the charts show the last 30 days while the table shows all time. Picking a range sets both.
 
 ### Service status
 One page answering "is anything broken right now?". It refreshes itself every 30 seconds.
@@ -133,7 +182,8 @@ One page answering "is anything broken right now?". It refreshes itself every 30
 - **External services**: Razorpay, ImageKit, Resend (email), Google sign-in and Gemini. Each is checked for two things: our server can reach the provider, and the keys are set. *Not configured* on an optional service doesn't count as a problem. A wrong or revoked key can't be detected here; it shows up as failed requests instead. **Recheck now** probes them again (at most once every 15 seconds).
 - **API traffic** for the last 15 minutes or hour:
   - requests, share failed (5xx), median and 95th-percentile response time;
-  - a per-minute chart (hover a bar for that minute's numbers);
+  - requests per minute (succeeded vs failed) and median / p95 response time per minute; hover for that minute's numbers, export as CSV;
+  - a response-time comparison by API area (p95) or by service (latest health-check latency);
   - a table per API area (`/api/product`, `/api/chat`…) so you can see *which part* is failing.
 - **Server**: uptime, memory, responsiveness and CPU load.
 - Traffic numbers are per server instance and reset when it restarts. If this page can't load at all, the API itself is down.
@@ -156,6 +206,11 @@ The server runs these on a schedule:
 - **History** shows runs from the last 30 days. Frequent jobs only keep runs that changed something or failed, so the history isn't flooded.
 - **Run now** (Super Admin) runs a job immediately and records it as a manual run.
 - Failing jobs appear on the dashboard and in the inbox.
+- **Charts** (for the chosen range):
+  - **Runs over time:** succeeded vs failed.
+  - **Runs by job:** click a job to open its history.
+  - **Execution time** of each recorded run for the selected job.
+  - These only count recorded runs: history is kept for 30 days, and frequent jobs record only runs that changed something or failed.
 
 ### My profile
 - Your role, the actions your role allows, your activity (last 7 and 30 days, and all-time), and your recent actions.

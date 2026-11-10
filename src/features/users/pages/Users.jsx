@@ -161,7 +161,7 @@ const Users = () => {
         }
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="Total users" icon={UsersIcon} value={formatNumber(stats?.totalUsers)} trend={stats ? `${stats.totalGrowth >= 0 ? '+' : ''}${stats.totalGrowth}%` : null} hint="vs last month" loading={!stats} />
         <StatCard label="Active" icon={UserCheck} tone="success" value={formatNumber(stats?.activeUsers)} hint={stats ? `${stats.activePct}% of all users` : ''} loading={!stats} onClick={() => setFilter('status', 'active')} />
         <StatCard label="Suspended" icon={Ban} tone="danger" value={formatNumber(stats?.suspendedUsers)} hint={stats ? `${stats.suspendedPct}% of all users` : ''} loading={!stats} onClick={() => setFilter('status', 'suspended')} />

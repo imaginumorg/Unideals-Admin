@@ -58,6 +58,7 @@
   /* Chart marks (validated per theme with the dataviz palette checker). */
   --color-chart-1: var(--c-chart-1);
   --color-chart-error: var(--c-chart-error);
+  --color-chart-prev: var(--c-chart-prev);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -98,6 +99,16 @@
 
   --c-chart-1: #6e69ff;
   --c-chart-error: #ef4444;
+  /* Comparison (previous period) series: recessive, never a hue. */
+  --c-chart-prev: #6b6b75;
+  /* Categorical order, validated for CVD + contrast on --c-surface
+     (dataviz validator: all checks pass in dark). Brand leads. */
+  --c-cat-1: #6e69ff;
+  --c-cat-2: #d95926;
+  --c-cat-3: #199e70;
+  --c-cat-4: #c98500;
+  --c-cat-5: #d55181;
+  --c-cat-6: #3987e5;
 
   /* Hairline highlight on top edges gives surfaces depth without shadows. */
   --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.025), 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -144,6 +155,15 @@
 
   --c-chart-1: #4b45ff;
   --c-chart-error: #dc2626;
+  --c-chart-prev: #a1a1aa;
+  /* Light steps of the same hues. Slots 3–5 sit under 3:1 on white, so
+     every chart pairs color with legends/labels carrying the values. */
+  --c-cat-1: #4b45ff;
+  --c-cat-2: #eb6834;
+  --c-cat-3: #1baf7a;
+  --c-cat-4: #eda100;
+  --c-cat-5: #e87ba4;
+  --c-cat-6: #2a78d6;
 
   --shadow-card: 0 1px 2px rgba(16, 16, 24, 0.04);
   --shadow-raised: 0 1px 2px rgba(16, 16, 24, 0.05), 0 4px 12px rgba(16, 16, 24, 0.05);
@@ -444,6 +464,26 @@
   }
   [data-presence="drawer"][data-state="closed"] {
     animation: slide-out 180ms var(--ease-out) forwards;
+  }
+  [data-presence="popover"][data-state="open"] {
+    animation: pop-in 140ms var(--ease-out);
+  }
+  [data-presence="popover"][data-state="closed"] {
+    animation: fade-out 110ms var(--ease-out) forwards;
+  }
+
+  /* Charts: keyboard focus shows the ring instead of the browser outline;
+     marks animate their opacity when another one is selected. */
+  .chart :is(.recharts-wrapper, .recharts-surface):focus {
+    outline: none;
+  }
+  .chart .recharts-wrapper:focus-visible {
+    border-radius: 8px;
+    box-shadow: var(--ring);
+  }
+  .chart .recharts-sector,
+  .chart .recharts-rectangle {
+    transition: opacity 160ms var(--ease-out);
   }
 }
 

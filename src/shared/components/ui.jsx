@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { memo, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox, RefreshCw, Search, X } from 'lucide-react'
 import BrandLoader from './BrandLoader'
 
@@ -119,9 +120,12 @@ export const StatusBadge = memo(({ status, label }) => {
  * KPI tile: label, one big number, a small trend/hint line. The icon is a
  * quiet glyph in the tone color (no tinted tile) so the number leads.
  */
-export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, trend, onClick, loading }) => {
-  const Wrapper = onClick ? 'button' : 'div'
+export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, trend, onClick, to, spark, active, loading }) => {
+  const interactive = Boolean(onClick || to)
+  const Wrapper = to ? Link : onClick ? 'button' : 'div'
   const trendDown = typeof trend === 'string' && trend.startsWith('-')
+  // "0%" / "+0%" is no change: show it neutral, without an arrow.
+  const trendFlat = typeof trend === 'string' && /^[+-]?0(\.0+)?%?$/.test(trend)
   const TrendIcon = trendDown ? ArrowDownRight : ArrowUpRight
   const iconColor = {
     brand: 'text-brand-fg',
@@ -135,16 +139,21 @@ export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, 
   }[tone] || 'text-subtle'
   return (
     <Wrapper
-      type={onClick ? 'button' : undefined}
+      type={onClick && !to ? 'button' : undefined}
+      to={to}
       onClick={onClick}
+      aria-pressed={onClick && !to && active !== undefined ? active : undefined}
       className={cx(
-        'card group flex w-full min-w-0 flex-col px-5 py-4 text-left',
-        onClick && 'transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/50',
+        'card group flex w-full min-w-0 flex-col px-4 py-3.5 text-left sm:px-5 sm:py-4',
+        interactive &&
+          'transition-[border-color,background-color,transform] duration-150 hover:border-line-strong hover:bg-surface-2/50 active:scale-[0.995]',
+        active && 'border-line-strong bg-surface-2/60 ring-1 ring-brand/40',
       )}
     >
       <div className="flex items-center justify-between gap-3">
         <p className="truncate text-[13px] font-medium text-muted">{label}</p>
         {Icon && <Icon className={cx('h-4 w-4 shrink-0 opacity-80', iconColor)} />}
+        {to && !Icon && <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />}
       </div>
       {loading ? (
         <div className="skeleton mt-3 h-7 w-24 rounded-md" />
@@ -159,16 +168,17 @@ export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, 
             <span
               className={cx(
                 'inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-px font-medium tabular-nums',
-                trendDown ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success',
+                trendFlat ? 'bg-surface-3 text-muted' : trendDown ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success',
               )}
             >
-              <TrendIcon className="h-3 w-3" />
+              {!trendFlat && <TrendIcon className="h-3 w-3" />}
               {trend.replace(/^[+-]/, '')}
             </span>
           )}
           {hint && <span className="min-w-0 truncate">{hint}</span>}
         </p>
       )}
+      {spark && <div className="mt-2.5">{loading ? <div className="skeleton h-[34px] w-full rounded-md" /> : spark}</div>}
     </Wrapper>
   )
 })
@@ -178,7 +188,7 @@ export const StatCard = memo(({ label, value, icon: Icon, tone = 'brand', hint, 
 // Small inline loader for buttons: the Unideals "U" in the text colour.
 export const Spinner = ({ className }) => <BrandLoader size="xs" tone="current" className={className} />
 
-export const Skeleton = ({ className }) => <div className={cx('skeleton rounded-md', className)} />
+export const Skeleton = ({ className, style }) => <div className={cx('skeleton rounded-md', className)} style={style} />
 
 export const TableSkeleton = memo(({ rows = 6, columns = 5 }) => (
   <div aria-busy="true" aria-label="Loading">

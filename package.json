@@ -14,7 +14,9 @@
     "lucide-react": "^0.475.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-is": "19.2.5",
     "react-router-dom": "^6.30.3",
+    "recharts": "3.10.1",
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {

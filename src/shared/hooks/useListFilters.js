@@ -38,11 +38,32 @@ export const useListFilters = (defaults) => {
     [setParams],
   )
 
+  // Several keys in one URL update (two setFilter calls in a row would
+  // each start from the same URL and the second would drop the first).
+  const setFilters = useCallback(
+    (values) => {
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          Object.entries(values).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '' || value === defaults[key]) next.delete(key)
+            else next.set(key, String(value))
+          })
+          next.delete('page')
+          return next
+        },
+        { replace: true },
+      )
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setParams],
+  )
+
   const resetFilters = useCallback(() => setParams({}, { replace: true }), [setParams])
 
   const isFiltered = Object.keys(defaults).some((key) => filters[key] !== defaults[key])
 
-  return { filters, setFilter, resetFilters, isFiltered }
+  return { filters, setFilter, setFilters, resetFilters, isFiltered }
 }
 
 export const useDebouncedValue = (value, delay = 300) => {

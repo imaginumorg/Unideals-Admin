@@ -6,6 +6,133 @@ How to use the portal is covered in [ADMIN_PORTAL.md](ADMIN_PORTAL.md).
 
 ---
 
+## 6. Interactive analytics
+
+Every chart reads real records through the API. Nothing is generated or cached; a range with no data shows an empty state, not a flat line made up to fill space.
+
+### Backend (additive; existing endpoints behave as before)
+- **New read-only endpoints**, available to Super Admin and Support, rate-limited to 120 requests per minute:
+  - `GET /api/admin/analytics/trends`: time series by day, week or month for users, listings, deals started/completed/cancelled, GMV, platform revenue, reports filed/closed and staff actions. Each comes with the comparison period, and buckets are aligned to the viewer's time zone.
+  - `GET /api/admin/analytics/breakdown`: listing status and category, a campus comparison, the open report queue by type, priority and reason, report outcomes, and audit entries by action and by staff member.
+  - `GET /api/admin/analytics/jobs`: recorded job runs per period and per job, with durations.
+  - Code: `services/analytics.service.js`, `controllers/admin.analytics.controller.js`.
+- **Reports queue** (`GET /admin/moderation/queue`) accepts optional `priority` (high/medium/low) and `reason` filters, which the charts use for drill-down. Invalid values are ignored.
+- The audit-log filter builder is shared by the list and its charts (`auditMatchFromQuery`), so both always count the same entries.
+- The per-minute traffic series on the status endpoint now includes the median (`p50`) as well as p95.
+- **Tests:** `tests/analytics.integration.test.mjs` (10 tests):
+  - time-zone bucketing;
+  - week and month buckets;
+  - comparison windows;
+  - validation;
+  - breakdowns match what the queue and lists show;
+  - drill-down filters.
+  - The existing 33 tests still pass.
+
+### Frontend
+- **Recharts 3.10.1** (and its `react-is` peer) for charts. They load only on pages that have charts.
+- **Framer Motion was not added.** The existing CSS animations already cover the brief.
+- **Reusable chart kit** in `src/shared/charts/`:
+  - `TrendChart` (line/area, previous period dashed, brush zoom on long ranges);
+  - `ColumnChart` (stacked bars);
+  - `Donut` (total in the centre, clickable legend);
+  - `BarList` (ranked, sortable, keyboard-friendly bars);
+  - `Sparkline`;
+  - `DateRangeFilter`;
+  - `ChartCard` (loading, error, empty and CSV export built in).
+- **Global date range:** Today, 7 days, 30 days, this month, last month, 3 months, this year, or custom.
+  - Calendar presets compare like-for-like (this month so far vs the same days last month); rolling ranges compare with the preceding span.
+  - The range is remembered per browser.
+- **Chart colors:** a categorical palette led by the brand indigo, checked with a color-blindness and contrast validator in both themes. Status charts use the same colors as the status badges. Every chart shows its values in its legend or tooltip, so color is never the only cue.
+- **Pages:**
+  - **Dashboard:**
+    - KPI cards cover the chosen range, with trend vs the comparison period, a sparkline, the all-time total, and a link to their page.
+    - Money trend (GMV / revenue / deals, one measure at a time).
+    - Growth chart.
+    - Listing-status and account-health donuts (click opens the filtered list).
+    - Campus comparison bars (click opens that campus's users or listings).
+  - **Listings:**
+    - Status donut using the list's own counts; click filters the table.
+    - Category bars; click filters the table.
+    - Listings-posted trend.
+  - **Orders:**
+    - Volume trend (started / completed / cancelled) and deal-value trend.
+    - Stage donut; click filters the table.
+    - Stage cards toggle their filter.
+  - **Reports:**
+    - Open items by type, priority and reason; each click filters the queue and shows a removable chip.
+    - Filed-vs-closed trend.
+    - Outcome donut.
+  - **Audit log:**
+    - Charts follow the table's filters.
+    - Clicking a timeline column narrows the table to that period.
+    - Action and staff bars filter the table.
+  - **Service status:**
+    - Requests per minute (stacked succeeded/failed).
+    - Median and p95 latency lines.
+    - Response-time comparison by API area or by service.
+  - **Background jobs:**
+    - Runs over time (succeeded/failed).
+    - Runs by job; click opens that job's history.
+    - Execution-time trend per job.
+- **Also:**
+  - "Show/Hide charts" toggle per list page, remembered per browser.
+  - Stat cards can now be links and show their active state.
+  - `useListFilters` gained `setFilters` so several URL filters change in one update.
+  - "1 items waiting" now reads "1 item waiting".
+
+---
+
+## 5. Visual redesign
+
+UI only. No API, route, business-logic or data changes.
+
+### Design system (`src/index.css`)
+- **Type:** Inter for interface text and numbers (Figtree kept for the Unideals wordmark only). A defined scale: 11 eyebrow, 12 meta, 13 body and table, 14 emphasis, 20–22 page title. Tabular numbers in tables.
+- **Color:** quieter neutrals with hairline borders.
+  - Dark canvas `#0a0a0b`, surface `#111113`.
+  - One restrained brand accent, `#5b56ff` in dark and `#4b45ff` in light.
+  - Retuned status colors.
+  - Chart colors re-validated against the new surfaces in both themes.
+- **Shape and depth:** controls have an 8px radius and 36px height (28px small); cards 12px; overlays 14px. Depth comes from a top-edge highlight instead of heavy shadows.
+- **Motion:** 120–240 ms ease-out.
+  - Dialogs, drawers and the command palette animate in **and out**; a closing overlay can't be clicked twice.
+  - Pages fade in on navigation (not on filter changes).
+  - Skeletons shimmer instead of blinking.
+  - Buttons press in slightly.
+  - All of this respects reduced motion.
+- **New helpers:** CSS tooltips (`.tip`), `.skeleton`, `usePresence` for exit animations.
+
+### Components (`shared/components/ui.jsx`, same exports and props)
+- Page headers without icon tiles.
+- Card headers with quiet glyphs.
+- KPI cards: the number leads, the trend is a small pill (neutral at 0%), and they sit 2-up on phones.
+- Segmented tabs.
+- Compact badges with a dot.
+- Restyled pagination, empty and error states, toggle, inputs, selects and focus rings.
+- Tables: quiet header, hairline rows, subtle hover, generous first and last column padding.
+
+### Shell
+- **Sidebar:** Linear-style 32px rows with sentence-case groups. The active row is raised and its icon tinted. The collapse control shows on hover. Collapsed mode has real tooltips and attention dots.
+- **Top bar:** 56px, translucent, chevron breadcrumb, refined search trigger. Icon controls have tooltips. The inbox and profile menus are redesigned.
+- **Command palette:** Raycast-style selection with a keyboard-hint footer.
+- **Toasts and bulk-action bar:** compact, with a count chip.
+
+### Pages
+- **Login:** the saturated gradient panel is replaced by a dark panel with a restrained glow and grid; the form is simpler.
+- **Profile:** the gradient banner is now a subtle surface. "Campuss" copy fixed.
+- **Dashboard:** 5-up KPI row, tighter attention tiles, and cards size to their content.
+- **Reports:** the action column no longer wraps awkwardly; primary action on the right; softer high-priority border.
+- **Service status:** uses the shared page header. "1 requests" copy fixed.
+- **All pages:** heavier weights reduced to semibold, radii unified, stat-grid spacing unified.
+
+### Verified
+Every page was rendered against a seeded in-memory demo backend:
+- at 1440 px in dark and light;
+- at 390 px on a phone, with no horizontal overflow and no runtime errors;
+- dialogs, drawers, palette, bulk bar, menus and the collapsed sidebar each captured and reviewed.
+
+---
+
 ## 4. Service status page
 
 ### Added

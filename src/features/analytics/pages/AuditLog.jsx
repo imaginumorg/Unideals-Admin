@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useState } from 'react'
+import { Fragment, memo, useCallback, useMemo, useState } from 'react'
 import { ChevronDown, Download, RotateCcw, ScrollText, UserRound, X } from 'lucide-react'
 import { auditLogApi } from '../api/auditLogApi'
 import { SavedViews } from '../../../shared/components/listTools'
@@ -15,9 +15,17 @@ import {
   Pagination,
   Select,
   TableSkeleton,
+  Tabs,
   cx,
 } from '../../../shared/components/ui'
-import { downloadCsv, formatDateTime, formatRelative, titleCase } from '../../../shared/lib/format'
+import { downloadCsv, formatDateTime, formatNumber, formatRelative, roleLabel, titleCase } from '../../../shared/lib/format'
+import { analyticsApi } from '../../../shared/lib/analyticsApi'
+import { PRESETS, isDayKey, resolveRange, toKey } from '../../../shared/lib/dateRange'
+import { exportRowsCsv, exportTrendCsv, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
+import { ChartCard, ChartsToggle } from '../../../shared/charts/primitives'
+import DateRangeFilter from '../../../shared/charts/DateRangeFilter'
+import ColumnChart from '../../../shared/charts/ColumnChart'
+import BarList from '../../../shared/charts/BarList'
 
 const FILTER_DEFAULTS = { action: '', target_type: 'all', actor_role: 'all', actor_id: '', from: '', to: '' }
 const PAGE_SIZE = 25
@@ -29,9 +37,23 @@ const targetLabel = (entry) =>
 const toIsoStart = (date) => (date ? new Date(`${date}T00:00:00`).toISOString() : '')
 const toIsoEnd = (date) => (date ? new Date(`${date}T23:59:59.999`).toISOString() : '')
 
+// The table's From/To filters drive the charts too. With no dates set the
+// table shows all time and the charts fall back to the last 30 days.
+const chartRangeFor = (from, to) => {
+  const hasFrom = isDayKey(from)
+  const hasTo = isDayKey(to)
+  if (!hasFrom && !hasTo) return { ...resolveRange({ preset: '30d' }), fallback: true }
+  const end = hasTo ? to : toKey(new Date())
+  const start = hasFrom ? from : toKey(new Date(new Date(`${end}T00:00:00`).getTime() - 29 * 86_400_000))
+  const custom = resolveRange({ preset: 'custom', from: start, to: end })
+  // Show a preset's name when the dates are exactly that preset.
+  const preset = PRESETS.map((p) => resolveRange({ preset: p.key })).find((r) => r.from === custom.from && r.to === custom.to)
+  return preset ? { ...custom, preset: preset.preset, label: preset.label } : custom
+}
+
 const AuditLog = () => {
   const { admin } = useAuth()
-  const { filters, setFilter, resetFilters, isFiltered } = useListFilters(FILTER_DEFAULTS)
+  const { filters, setFilter, setFilters, resetFilters, isFiltered } = useListFilters(FILTER_DEFAULTS)
   const [expanded, setExpanded] = useState(null)
 
   const load = useCallback(
@@ -52,6 +74,34 @@ const AuditLog = () => {
   const entries = data || []
   const onlyMine = filters.actor_id && filters.actor_id === admin?.id
 
+  // Charts
+  const [chartsVisible, toggleCharts] = useChartsVisible('audit-log')
+  const chartRange = useMemo(() => chartRangeFor(filters.from, filters.to), [filters.from, filters.to])
+  const setChartRange = (next) => {
+    const resolved = resolveRange(next)
+    setFilters({ from: resolved.from, to: resolved.to })
+  }
+  const auditFilters = {
+    action: filters.action,
+    target_type: filters.target_type === 'all' ? '' : filters.target_type,
+    actor_role: filters.actor_role === 'all' ? '' : filters.actor_role,
+    actor_id: filters.actor_id,
+  }
+  const [interval, setTimelineInterval, intervals] = useInterval(chartRange.days)
+  const timeline = useAnalytics(
+    analyticsApi.trends,
+    { from: chartRange.from, to: chartRange.to, metrics: 'staffActions', interval, ...auditFilters },
+    { enabled: chartsVisible },
+  )
+  const breakdown = useAnalytics(
+    analyticsApi.breakdown,
+    { from: chartRange.from, to: chartRange.to, dims: 'auditAction,auditActor', ...auditFilters },
+    { enabled: chartsVisible },
+  )
+  const timelineRows = trendRows(timeline.data, ['staffActions'])
+  const actionItems = (breakdown.data?.data?.auditAction || []).map((row) => ({ key: row.key, label: AUDIT_ACTION_LABELS[row.key] || row.key, value: row.count }))
+  const actorItems = (breakdown.data?.data?.auditActor || []).map((row) => ({ key: row.key, label: row.name, sub: roleLabel(row.role), value: row.count }))
+
   const exportCsv = () =>
     downloadCsv(
       `audit-log-page-${filters.page}.csv`,
@@ -66,11 +116,82 @@ const AuditLog = () => {
         description="Immutable record of every staff action. Entries can't be edited or deleted."
         icon={ScrollText}
         actions={
-          <button type="button" onClick={exportCsv} disabled={!entries.length} className="btn btn-secondary">
-            <Download className="h-4 w-4" /> Export page
-          </button>
+          <>
+            {chartsVisible && <DateRangeFilter value={chartRange} onChange={setChartRange} />}
+            <ChartsToggle visible={chartsVisible} onToggle={toggleCharts} />
+            <button type="button" onClick={exportCsv} disabled={!entries.length} className="btn btn-secondary">
+              <Download className="h-4 w-4" /> Export page
+            </button>
+          </>
         }
       />
+
+      {chartsVisible && (
+        <div className="mb-6">
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            <ChartCard
+              className="lg:col-span-2"
+              title="Activity timeline"
+              description={`Staff actions · ${chartRange.span} · click a column to see that period`}
+              loading={timeline.loading && !timeline.data}
+              refreshing={timeline.refreshing}
+              error={!timeline.data ? timeline.error : ''}
+              onRetry={timeline.refetch}
+              empty={timeline.data && !timeline.data.totals.staffActions}
+              emptyTitle="No staff actions"
+              emptyMessage="Nothing matches these filters in this range."
+              onExport={() => exportTrendCsv(`audit-activity-${chartRange.from}-to-${chartRange.to}.csv`, timeline.data, [{ key: 'staffActions', label: 'Staff actions' }])}
+              actions={intervals.length > 1 && <Tabs value={interval} onChange={setTimelineInterval} tabs={intervalTabs(intervals)} />}
+              height={220}
+            >
+              <ColumnChart
+                rows={timelineRows}
+                series={[{ key: 'staffActions', label: 'Staff actions', color: 'var(--c-chart-1)' }]}
+                format={formatNumber}
+                clickHint="Click to filter the table to this period"
+                onColumnClick={(row) => setFilters({ from: row.bucket.from, to: row.bucket.to })}
+              />
+            </ChartCard>
+
+            <ChartCard
+              title="By action"
+              description="Click to filter"
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={breakdown.data && actionItems.length === 0}
+              emptyTitle="No actions"
+              emptyMessage="Nothing matches these filters in this range."
+              onExport={() => exportRowsCsv(`audit-by-action-${chartRange.from}-to-${chartRange.to}.csv`, ['Action', 'Entries'], actionItems.map((a) => [a.label, a.value]))}
+              height={220}
+            >
+              <BarList items={actionItems} limit={6} selected={filters.action || null} onSelect={(key) => setFilter('action', key || '')} />
+            </ChartCard>
+
+            <ChartCard
+              title="By staff member"
+              description="Click to see one person's actions"
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={breakdown.data && actorItems.length === 0}
+              emptyTitle="No staff activity"
+              emptyMessage="Nothing matches these filters in this range."
+              onExport={() => exportRowsCsv(`audit-by-staff-${chartRange.from}-to-${chartRange.to}.csv`, ['Staff', 'Role', 'Entries'], actorItems.map((a) => [a.label, a.sub, a.value]))}
+              height={220}
+            >
+              <BarList items={actorItems} limit={6} color="var(--c-cat-6)" selected={filters.actor_id || null} onSelect={(key) => setFilter('actor_id', key || '')} />
+            </ChartCard>
+          </div>
+          {chartRange.fallback && (
+            <p className="mt-3 text-xs text-subtle">
+              Charts show the last 30 days; the table below shows all time. Pick a range above, or set From/To, to filter both.
+            </p>
+          )}
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-line p-4 xl:flex-row xl:items-end">

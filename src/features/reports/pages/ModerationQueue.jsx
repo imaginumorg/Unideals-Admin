@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react'
-import { Ban, FileSearch, CheckCircle2, EyeOff, Flag, ImageOff, LifeBuoy, Mail, Package, ShieldAlert, ShieldCheck, Trash2, User, UserCheck, XCircle } from 'lucide-react'
+import { Ban, FileSearch, CheckCircle2, EyeOff, Flag, ImageOff, LifeBuoy, Mail, Package, ShieldAlert, ShieldCheck, Trash2, User, UserCheck, X, XCircle } from 'lucide-react'
 import { moderationApi } from '../api/moderationApi'
 import { productsApi } from '../../products/api/productsApi'
 import { usersApi } from '../../users/api/usersApi'
@@ -26,7 +26,23 @@ import {
   Tabs,
   cx,
 } from '../../../shared/components/ui'
-import { formatCurrency, formatRelative, titleCase } from '../../../shared/lib/format'
+import { formatCurrency, formatNumber, formatRelative, titleCase } from '../../../shared/lib/format'
+import { useAnalyticsRange } from '../../../shared/context/AnalyticsRangeContext'
+import { analyticsApi } from '../../../shared/lib/analyticsApi'
+import { exportRowsCsv, exportTrendCsv, hasAny, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
+import { ChartCard, ChartsToggle, categorical, statusColor } from '../../../shared/charts/primitives'
+import DateRangeFilter from '../../../shared/charts/DateRangeFilter'
+import Donut from '../../../shared/charts/Donut'
+import BarList from '../../../shared/charts/BarList'
+import TrendChart from '../../../shared/charts/TrendChart'
+
+const PRIORITY_ORDER = ['high', 'medium', 'low']
+const QUEUE_TYPES = ['Product', 'User', 'Support']
+const OUTCOME_LABELS = { pending: 'Still open', action_taken: 'Action taken', dismissed: 'Dismissed' }
+const REPORT_SERIES = [
+  { key: 'reports', label: 'Filed', color: 'var(--c-cat-1)' },
+  { key: 'reportsClosed', label: 'Closed', color: 'var(--c-cat-3)' },
+]
 
 const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'neutral' }
 const TYPE_META = {
@@ -106,17 +122,57 @@ const ModerationQueue = () => {
   const { canWrite } = useAuth()
   const { showToast } = useToast()
   const { refresh: refreshAttention } = useAttention()
-  const { filters, setFilter } = useListFilters({ type: 'all' })
+  const { filters, setFilter, setFilters } = useListFilters({ type: 'all', priority: '', reason: '' })
   const [pending, setPending] = useState(null) // { item, action }
   const [note, setNote] = useState('')
   const [working, setWorking] = useState(false)
 
   const load = useCallback(
-    () => moderationApi.getQueue({ target_model: filters.type === 'all' ? '' : filters.type, page: filters.page }),
-    [filters.type, filters.page],
+    () =>
+      moderationApi.getQueue({
+        target_model: filters.type === 'all' ? '' : filters.type,
+        priority: filters.priority,
+        reason: filters.reason,
+        page: filters.page,
+      }),
+    [filters.type, filters.priority, filters.reason, filters.page],
   )
   const { data, pagination, loading, refreshing, error, refetch } = useFetch(load)
   const items = data || []
+
+  // Charts: the queue mix (what's open now) and reports over the chosen range.
+  const { range } = useAnalyticsRange()
+  const [chartsVisible, toggleCharts] = useChartsVisible('reports')
+  const breakdown = useAnalytics(
+    analyticsApi.breakdown,
+    { from: range.from, to: range.to, dims: 'queueType,queuePriority,queueReason,reportStatus' },
+    { enabled: chartsVisible },
+  )
+  const [trendInterval, setTrendInterval, trendIntervals] = useInterval(range.days)
+  const trends = useAnalytics(
+    analyticsApi.trends,
+    { from: range.from, to: range.to, compareFrom: range.compareFrom, compareTo: range.compareTo, metrics: 'reports,reportsClosed', interval: trendInterval },
+    { enabled: chartsVisible },
+  )
+  const dims = breakdown.data?.data || {}
+  const countsOf = (rows) => Object.fromEntries((rows || []).map((row) => [row.key, row.count]))
+  const typeCounts = countsOf(dims.queueType)
+  const typeDonut = QUEUE_TYPES.map((key, i) => ({ key, label: TYPE_META[key].label, value: typeCounts[key] || 0, color: categorical(i) }))
+  const priorityCounts = countsOf(dims.queuePriority)
+  const priorityItems = PRIORITY_ORDER.map((key) => ({ key, label: `${titleCase(key)} priority`, value: priorityCounts[key] || 0, sub: key === 'high' ? '5+ reports' : key === 'medium' ? '2–4' : '1' }))
+  const reasonItems = (dims.queueReason || []).map((row) => ({ key: row.key, label: REPORT_REASON_LABELS[row.key] || titleCase(row.key), value: row.count }))
+  const outcomeCounts = countsOf(dims.reportStatus)
+  const outcomeDonut = Object.entries(OUTCOME_LABELS).map(([key, label]) => ({ key, label, value: outcomeCounts[key] || 0, color: statusColor(key) }))
+  const queueEmpty = breakdown.data && typeDonut.every((d) => !d.value)
+  const refreshCharts = () => {
+    if (!chartsVisible) return
+    breakdown.refetch()
+    trends.refetch()
+  }
+  const drillFilters = [
+    filters.priority && { key: 'priority', label: `${titleCase(filters.priority)} priority` },
+    filters.reason && { key: 'reason', label: REPORT_REASON_LABELS[filters.reason] || titleCase(filters.reason) },
+  ].filter(Boolean)
 
   const run = async () => {
     const { item, action } = pending
@@ -155,6 +211,7 @@ const ModerationQueue = () => {
     setPending(null)
     setNote('')
     refetch()
+    refreshCharts()
     refreshAttention()
   }
 
@@ -167,7 +224,123 @@ const ModerationQueue = () => {
         title="Reports"
         description="Grouped by item, most-reported first. Resolving or enforcing closes every open report on that item."
         icon={ShieldAlert}
+        actions={
+          <>
+            {chartsVisible && <DateRangeFilter />}
+            <ChartsToggle visible={chartsVisible} onToggle={toggleCharts} />
+          </>
+        }
       />
+
+      {chartsVisible && (
+        <div className="mb-6 space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            <ChartCard
+              title="Open items by type"
+              description="Waiting in the queue now · click to filter"
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={queueEmpty}
+              emptyTitle="Queue is clear"
+              emptyMessage="No open reports right now."
+              onExport={() => exportRowsCsv('open-reports-by-type.csv', ['Type', 'Open items'], typeDonut.map((d) => [d.label, d.value]))}
+              height={168}
+            >
+              <Donut
+                data={typeDonut}
+                centerLabel="Open items"
+                selected={filters.type === 'all' ? null : filters.type}
+                onSelect={(key) => setFilter('type', key || 'all')}
+              />
+            </ChartCard>
+
+            <ChartCard
+              title="Open items by priority"
+              description="Listings and users · click to filter"
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={breakdown.data && priorityItems.every((d) => !d.value)}
+              emptyTitle="Nothing to prioritise"
+              emptyMessage="No open reports on listings or users."
+              onExport={() => exportRowsCsv('open-reports-by-priority.csv', ['Priority', 'Open items'], priorityItems.map((d) => [d.label, d.value]))}
+              height={140}
+            >
+              <BarList
+                items={priorityItems}
+                sortable={false}
+                color="var(--c-danger)"
+                selected={filters.priority || null}
+                onSelect={(key) => setFilters(key ? { priority: key, type: filters.type === 'Support' ? 'all' : filters.type } : { priority: '' })}
+              />
+            </ChartCard>
+
+            <ChartCard
+              className="lg:col-span-2 xl:col-span-1"
+              title="Open items by reason"
+              description="An item counts once per reason · click to filter"
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={breakdown.data && reasonItems.length === 0}
+              emptyTitle="No open reasons"
+              emptyMessage="No open reports on listings or users."
+              onExport={() => exportRowsCsv('open-reports-by-reason.csv', ['Reason', 'Open items'], reasonItems.map((d) => [d.label, d.value]))}
+              height={160}
+            >
+              <BarList
+                items={reasonItems}
+                limit={5}
+                selected={filters.reason || null}
+                onSelect={(key) => setFilters(key ? { reason: key, type: filters.type === 'Support' ? 'all' : filters.type } : { reason: '' })}
+              />
+            </ChartCard>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-5">
+            <ChartCard
+              className="xl:col-span-3"
+              title="Reports over time"
+              description={`Listing and user reports filed and closed · ${range.label.toLowerCase()} vs ${range.compareLabel}`}
+              loading={trends.loading && !trends.data}
+              refreshing={trends.refreshing}
+              error={!trends.data ? trends.error : ''}
+              onRetry={trends.refetch}
+              empty={trends.data && !hasAny(trends.data, ['reports', 'reportsClosed'])}
+              emptyMessage="No reports were filed or closed in this range."
+              onExport={() => exportTrendCsv(`reports-${range.from}-to-${range.to}.csv`, trends.data, REPORT_SERIES)}
+              actions={trendIntervals.length > 1 && <Tabs value={trendInterval} onChange={setTrendInterval} tabs={intervalTabs(trendIntervals)} />}
+            >
+              <TrendChart
+                type="line"
+                rows={trendRows(trends.data, ['reports', 'reportsClosed'])}
+                series={REPORT_SERIES.map((s) => ({ ...s, total: trends.data ? formatNumber(trends.data.totals[s.key]) : undefined }))}
+                format={formatNumber}
+              />
+            </ChartCard>
+
+            <ChartCard
+              className="xl:col-span-2"
+              title="Outcome"
+              description={`Reports filed ${range.label.toLowerCase()}, by what happened`}
+              loading={breakdown.loading && !breakdown.data}
+              refreshing={breakdown.refreshing}
+              error={!breakdown.data ? breakdown.error : ''}
+              onRetry={breakdown.refetch}
+              empty={breakdown.data && outcomeDonut.every((d) => !d.value)}
+              emptyMessage="No listing or user reports were filed in this range."
+              onExport={() => exportRowsCsv(`report-outcomes-${range.from}-to-${range.to}.csv`, ['Outcome', 'Reports'], outcomeDonut.map((d) => [d.label, d.value]))}
+              height={168}
+            >
+              <Donut data={outcomeDonut} centerLabel="Filed" />
+            </ChartCard>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs
@@ -180,8 +353,28 @@ const ModerationQueue = () => {
             { value: 'Support', label: 'Help & support' },
           ]}
         />
-        {pagination?.total !== undefined && <p className="text-sm text-muted">{pagination.total} items waiting</p>}
+        {pagination?.total !== undefined && <p className="text-sm text-muted">{pagination.total} item{pagination.total === 1 ? '' : 's'} waiting</p>}
       </div>
+
+      {drillFilters.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Filtered by</span>
+          {drillFilters.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setFilter(chip.key, '')}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line bg-surface-2 px-2.5 text-xs font-medium text-fg-2 transition-colors hover:border-line-strong hover:text-fg"
+              aria-label={`Remove filter: ${chip.label}`}
+            >
+              {chip.label} <X className="h-3 w-3" />
+            </button>
+          ))}
+          <button type="button" onClick={() => setFilters({ priority: '', reason: '' })} className="text-xs font-medium text-brand-fg hover:underline">
+            Clear
+          </button>
+        </div>
+      )}
 
       {!canWrite && (
         <InlineAlert tone="info" className="mb-4">
@@ -194,7 +387,13 @@ const ModerationQueue = () => {
       ) : error && !data ? (
         <Card><ErrorState message={error} onRetry={refetch} /></Card>
       ) : items.length === 0 ? (
-        <Card><EmptyState icon={ShieldCheck} title="Queue is clear" message="No open reports right now. New reports from students will show up here." /></Card>
+        <Card>
+          {drillFilters.length > 0 ? (
+            <EmptyState icon={ShieldCheck} title="Nothing matches these filters" message="Clear the priority or reason filter to see the rest of the queue." />
+          ) : (
+            <EmptyState icon={ShieldCheck} title="Queue is clear" message="No open reports right now. New reports from students will show up here." />
+          )}
+        </Card>
       ) : (
         <div className={cx('space-y-4 transition-opacity', refreshing && 'opacity-60')}>
           {items.map((item) => {
@@ -202,7 +401,7 @@ const ModerationQueue = () => {
             const TypeIcon = meta.icon
             const target = item.target
             return (
-              <Card key={`${item.targetModel}-${item.targetId}`} className={cx('overflow-hidden', item.priority === 'high' && 'border-danger/40')}>
+              <Card key={`${item.targetModel}-${item.targetId}`} className={cx('overflow-hidden', item.priority === 'high' && 'border-danger/25')}>
                 <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
                   <Badge tone={PRIORITY_TONE[item.priority] || 'neutral'} dot>{item.priority || 'low'} priority</Badge>
                   <Badge><TypeIcon className="h-3 w-3" /> {meta.label}</Badge>
@@ -226,7 +425,7 @@ const ModerationQueue = () => {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap content-start gap-2 lg:w-64 lg:justify-end">
+                  <div className="flex flex-wrap content-start gap-2 lg:w-[360px] lg:justify-end">
                     {canWrite && target && item.targetModel === 'Product' && !target.is_deleted && (
                       <>
                         <button type="button" disabled={target.status === 'blocked'} onClick={() => open(item, 'block')} className="btn btn-danger btn-sm">
@@ -264,11 +463,11 @@ const ModerationQueue = () => {
                       {item.hasChat && <span className="rounded bg-brand-soft px-1 text-[10px] text-brand-fg">chat</span>}
                     </button>
                     <div className="hidden basis-full lg:block" />
-                    <button type="button" onClick={() => open(item, 'resolve')} className="btn btn-primary btn-sm">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
-                    </button>
                     <button type="button" onClick={() => open(item, 'dismiss')} className="btn btn-secondary btn-sm">
                       <XCircle className="h-3.5 w-3.5" /> Dismiss
+                    </button>
+                    <button type="button" onClick={() => open(item, 'resolve')} className="btn btn-primary btn-sm">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
                     </button>
                   </div>
                 </div>

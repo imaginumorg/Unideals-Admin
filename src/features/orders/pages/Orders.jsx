@@ -18,9 +18,23 @@ import {
   StatCard,
   TableSkeleton,
   Tabs,
+  Toggle,
 } from '../../../shared/components/ui'
 import { downloadCsv, formatCurrency, formatDate, formatNumber } from '../../../shared/lib/format'
 import { ORDER_STAGES, stageOf } from '../orderStatus'
+import { useAnalyticsRange } from '../../../shared/context/AnalyticsRangeContext'
+import { analyticsApi } from '../../../shared/lib/analyticsApi'
+import { exportRowsCsv, exportTrendCsv, hasAny, intervalTabs, trendRows, useAnalytics, useChartsVisible, useInterval } from '../../../shared/charts/analytics'
+import { ChartCard, ChartsToggle, compact, toneColor } from '../../../shared/charts/primitives'
+import DateRangeFilter from '../../../shared/charts/DateRangeFilter'
+import Donut from '../../../shared/charts/Donut'
+import TrendChart from '../../../shared/charts/TrendChart'
+
+const VOLUME_SERIES = [
+  { key: 'orders', label: 'Started', color: 'var(--c-cat-1)' },
+  { key: 'deals', label: 'Completed', color: 'var(--c-cat-3)' },
+  { key: 'cancelled', label: 'Cancelled', color: 'var(--c-cat-2)' },
+]
 
 const PAGE_SIZE = 12
 const FILTER_DEFAULTS = { search: '', status: 'all', campus: 'all', payment: 'all' }
@@ -58,6 +72,25 @@ const Orders = () => {
       }
     : null
 
+  // Charts
+  const { range } = useAnalyticsRange()
+  const [chartsVisible, toggleCharts] = useChartsVisible('orders')
+  const [trendTab, setTrendTab] = useState('volume')
+  const [compare, setCompare] = useState(false)
+  const [interval, setTrendInterval, intervals] = useInterval(range.days)
+  const trends = useAnalytics(
+    analyticsApi.trends,
+    { from: range.from, to: range.to, compareFrom: range.compareFrom, compareTo: range.compareTo, metrics: 'orders,deals,cancelled,gmv', interval },
+    { enabled: chartsVisible },
+  )
+  const trendMetrics = trendTab === 'volume' ? VOLUME_SERIES.map((s) => s.key) : ['gmv']
+  const trendSeries =
+    trendTab === 'volume'
+      ? VOLUME_SERIES.map((s) => ({ ...s, total: trends.data ? formatNumber(trends.data.totals[s.key]) : undefined }))
+      : [{ key: 'gmv', label: 'Completed-deal value', color: 'var(--c-chart-1)', total: trends.data ? formatCurrency(trends.data.totals.gmv) : undefined }]
+  const stageDonut = Object.entries(ORDER_STAGES).map(([key, stage]) => ({ key, label: stage.label, value: counts?.[key] || 0, color: toneColor(stage.tone) }))
+  const stageSelected = ORDER_STAGES[filters.status] ? filters.status : null
+
   const exportCsv = () =>
     downloadCsv(
       `orders-page-${filters.page}.csv`,
@@ -72,19 +105,80 @@ const Orders = () => {
         description="Deals between students, from first offer to pickup."
         icon={ShoppingBag}
         actions={
-          <button type="button" onClick={exportCsv} disabled={!orders.length} className="btn btn-secondary">
-            <Download className="h-4 w-4" /> Export page
-          </button>
+          <>
+            {chartsVisible && <DateRangeFilter />}
+            <ChartsToggle visible={chartsVisible} onToggle={toggleCharts} />
+            <button type="button" onClick={exportCsv} disabled={!orders.length} className="btn btn-secondary">
+              <Download className="h-4 w-4" /> Export page
+            </button>
+          </>
         }
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
         <StatCard label="All deals" icon={ShoppingBag} value={formatNumber(stats?.totalOrders)} trend={stats ? `${stats.totalGrowth >= 0 ? '+' : ''}${stats.totalGrowth}%` : null} hint="vs last month" loading={!stats} />
-        <StatCard label="Negotiating" icon={Handshake} tone="warning" value={formatNumber(stats?.pendingOrders)} loading={!stats} onClick={() => setFilter('status', 'pending')} />
-        <StatCard label="Pickup scheduled" icon={CalendarCheck} tone="violet" value={formatNumber(stats?.scheduledOrders)} loading={!stats} onClick={() => setFilter('status', 'scheduled')} />
-        <StatCard label="Completed" icon={CircleCheck} tone="success" value={formatNumber(stats?.deliveredOrders)} loading={!stats} onClick={() => setFilter('status', 'delivered')} />
-        <StatCard label="Cancelled" icon={XCircle} tone="neutral" value={formatNumber(stats?.cancelledOrders)} loading={!stats} onClick={() => setFilter('status', 'cancelled')} />
+        <StatCard label="Negotiating" icon={Handshake} tone="warning" value={formatNumber(stats?.pendingOrders)} loading={!stats} active={filters.status === 'pending'} onClick={() => setFilter('status', filters.status === 'pending' ? 'all' : 'pending')} />
+        <StatCard label="Pickup scheduled" icon={CalendarCheck} tone="violet" value={formatNumber(stats?.scheduledOrders)} loading={!stats} active={filters.status === 'scheduled'} onClick={() => setFilter('status', filters.status === 'scheduled' ? 'all' : 'scheduled')} />
+        <StatCard label="Completed" icon={CircleCheck} tone="success" value={formatNumber(stats?.deliveredOrders)} loading={!stats} active={filters.status === 'delivered'} onClick={() => setFilter('status', filters.status === 'delivered' ? 'all' : 'delivered')} />
+        <StatCard label="Cancelled" icon={XCircle} tone="neutral" value={formatNumber(stats?.cancelledOrders)} loading={!stats} active={filters.status === 'cancelled'} onClick={() => setFilter('status', filters.status === 'cancelled' ? 'all' : 'cancelled')} />
       </div>
+
+      {chartsVisible && (
+        <div className="mb-6 grid gap-6 xl:grid-cols-5">
+          <ChartCard
+            className="xl:col-span-3"
+            title={trendTab === 'volume' ? 'Order volume' : 'Completed-deal value'}
+            description={`${range.label} · ${trendTab === 'volume' ? 'deals started, completed and cancelled' : 'GMV of deals completed'}`}
+            loading={trends.loading && !trends.data}
+            refreshing={trends.refreshing}
+            error={!trends.data ? trends.error : ''}
+            onRetry={trends.refetch}
+            empty={trends.data && !hasAny(trends.data, trendMetrics)}
+            emptyMessage="No deals started, completed or cancelled in this range."
+            onExport={() => exportTrendCsv(`orders-${trendTab}-${range.from}-to-${range.to}.csv`, trends.data, trendSeries)}
+            actions={
+              <>
+                <label className="hidden items-center gap-2 text-xs text-muted sm:flex">
+                  Compare <Toggle checked={compare} onChange={setCompare} label="Compare with the previous period" />
+                </label>
+                {intervals.length > 1 && <Tabs value={interval} onChange={setTrendInterval} tabs={intervalTabs(intervals)} />}
+              </>
+            }
+            height={248}
+          >
+            <Tabs
+              className="mb-4"
+              value={trendTab}
+              onChange={setTrendTab}
+              tabs={[
+                { value: 'volume', label: 'Volume' },
+                { value: 'value', label: 'Deal value' },
+              ]}
+            />
+            <TrendChart
+              type={trendTab === 'volume' ? 'line' : 'area'}
+              rows={trendRows(trends.data, trendMetrics)}
+              series={trendSeries}
+              format={trendTab === 'volume' ? formatNumber : formatCurrency}
+              axisFormat={trendTab === 'volume' ? compact : (v) => `₹${compact(v)}`}
+              showPrevious={compare}
+            />
+          </ChartCard>
+
+          <ChartCard
+            className="xl:col-span-2"
+            title="Orders by stage"
+            description="All deals right now · click to filter"
+            loading={!stats}
+            empty={stats && stageDonut.every((d) => !d.value)}
+            emptyMessage="Deals appear here once students start trading."
+            onExport={() => exportRowsCsv('orders-by-stage.csv', ['Stage', 'Deals'], stageDonut.map((d) => [d.label, d.value]))}
+            height={168}
+          >
+            <Donut data={stageDonut} centerLabel="Deals" selected={stageSelected} onSelect={(key) => setFilter('status', key || 'all')} />
+          </ChartCard>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <div className="space-y-3 border-b border-line p-4">
