@@ -34,6 +34,16 @@ export const usersApi = {
       return createApiResponse(response.data, response.message)
     }),
 
+  // Super Admin only: permanent delete with everything linked to the user.
+  deleteUser: (userId, { confirmEmail, reason = '' }) =>
+    fetcher(async () => {
+      const response = await requestBackend(`/admin/users/${userId}`, {
+        method: 'DELETE',
+        body: { confirmEmail, ...(reason ? { reason } : {}) },
+      })
+      return createApiResponse(response.data, response.message)
+    }),
+
   bulkUpdateStatus: (ids, status, reason = '') =>
     fetcher(async () => {
       const response = await requestBackend('/admin/users/bulk', { method: 'POST', body: { ids, status, reason } })

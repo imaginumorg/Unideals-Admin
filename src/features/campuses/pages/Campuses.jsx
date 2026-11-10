@@ -166,9 +166,11 @@ const RowActions = ({ campus, onEdit, onToggle, onDelete }) => {
             {campus.is_active ? <CirclePause className="h-4 w-4 text-muted" /> : <CirclePlay className="h-4 w-4 text-muted" />}
             {campus.is_active ? 'Pause' : 'Make live'}
           </button>
-          <button type="button" className={`${item} text-danger`} onClick={() => { setOpen(false); onDelete() }}>
-            <Trash2 className="h-4 w-4" /> Delete
-          </button>
+          {onDelete && (
+            <button type="button" className={`${item} text-danger`} onClick={() => { setOpen(false); onDelete() }}>
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -176,8 +178,10 @@ const RowActions = ({ campus, onEdit, onToggle, onDelete }) => {
 }
 
 const Campuses = () => {
-  const { can } = useAuth()
+  const { can, myCampuses } = useAuth()
   const canWrite = can('campuses', 'manage')
+  // Campus-limited staff can edit their campuses but not add or delete any.
+  const canAddRemove = canWrite && myCampuses.length === 0
   const { showToast } = useToast()
   const { data, loading, error, refetch } = useFetch(campusesApi.getCampuses)
   const campuses = useMemo(() => data || [], [data])
@@ -230,7 +234,7 @@ const Campuses = () => {
         description="Each campus is its own marketplace. Slugs are permanent; pause a campus to hide it."
         icon={Building2}
         actions={
-          canWrite && (
+          canAddRemove && (
             <button type="button" onClick={() => setEditing('new')} className="btn btn-primary">
               <Plus className="h-4 w-4" /> Add campus
             </button>
@@ -315,7 +319,7 @@ const Campuses = () => {
                           campus={campus}
                           onEdit={() => setEditing(campus)}
                           onToggle={() => setPending({ campus, kind: 'toggle' })}
-                          onDelete={() => setPending({ campus, kind: 'delete' })}
+                          onDelete={canAddRemove ? () => setPending({ campus, kind: 'delete' }) : undefined}
                         />
                       </td>
                     )}

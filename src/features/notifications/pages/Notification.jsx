@@ -103,7 +103,12 @@ const Preview = ({ form }) => (
 const Compose = ({ canWrite, onSent }) => {
   const { showToast } = useToast()
   const campuses = useCampusOptions()
-  const [form, setForm] = useState(EMPTY_FORM)
+  // Campus-limited staff can only send to one of their campuses.
+  const { myCampuses } = useAuth()
+  const limited = myCampuses.length > 0
+  const emptyForm = limited ? { ...EMPTY_FORM, audience: 'campus' } : EMPTY_FORM
+  const audiences = limited ? AUDIENCES.filter((a) => a.value === 'campus') : AUDIENCES
+  const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
   const [estimate, setEstimate] = useState(null)
   const [confirming, setConfirming] = useState(false)
@@ -166,7 +171,7 @@ const Compose = ({ canWrite, onSent }) => {
         scheduled_at: form.schedule === 'scheduled' ? new Date(form.scheduledAt).toISOString() : null,
       })
       showToast({ type: 'success', message: form.schedule === 'scheduled' ? 'Notification scheduled' : 'Notification sent' })
-      setForm(EMPTY_FORM)
+      setForm(emptyForm)
       setConfirming(false)
       onSent(form.schedule)
     } catch (err) {
@@ -207,7 +212,7 @@ const Compose = ({ canWrite, onSent }) => {
               <Select label="Type" value={form.type} onChange={set('type')} options={TYPES.map((t) => ({ value: t, label: titleCase(t) }))} />
             </Field>
             <Field label="Audience" hint={estimate === null ? 'Estimating…' : `≈ ${formatNumber(estimate)} recipients`}>
-              <Select label="Audience" value={form.audience} onChange={set('audience')} options={AUDIENCES} />
+              <Select label="Audience" value={form.audience} onChange={set('audience')} options={audiences} />
             </Field>
           </div>
 
@@ -267,7 +272,7 @@ const Compose = ({ canWrite, onSent }) => {
           </div>
 
           <div className="flex justify-end gap-2 border-t border-line pt-5">
-            <button type="button" onClick={() => setForm(EMPTY_FORM)} className="btn btn-ghost">Clear</button>
+            <button type="button" onClick={() => setForm(emptyForm)} className="btn btn-ghost">Clear</button>
             <button type="submit" disabled={!canWrite} className="btn btn-primary">
               {form.schedule === 'scheduled' ? <CalendarClock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               Review & {form.schedule === 'scheduled' ? 'schedule' : 'send'}

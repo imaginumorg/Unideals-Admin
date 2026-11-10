@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/context/AuthContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useCampusOptions, useListFilters, useSearchFilter } from '../../../shared/hooks/useListFilters'
 import UserDetailsDrawer from '../components/UserDetailsDrawer'
+import DeleteUserDialog from '../components/DeleteUserDialog'
 import { BulkBar, BulkConfirmDialog, Checkbox, SavedViews, useSelection } from '../../../shared/components/listTools'
 import Avatar from '../../../shared/components/Avatar'
 import {
@@ -94,6 +95,7 @@ const Users = () => {
   const users = data || []
   const selection = useSelection(users)
   const [bulkStatus, setBulkStatus] = useState(null)
+  const [deleting, setDeleting] = useState(null)
 
   const runBulk = async (reason) => {
     const response = await usersApi.bulkUpdateStatus(selection.selectedIds, bulkStatus, reason)
@@ -285,7 +287,18 @@ const Users = () => {
         userId={selectedUserId}
         version={drawerVersion}
         onClose={() => setSelectedUserId(null)}
-        onRequestAction={(user, kind) => setConfirm({ user, kind })}
+        onRequestAction={(user, kind) => (kind === 'delete' ? setDeleting(user) : setConfirm({ user, kind }))}
+      />
+
+      <DeleteUserDialog
+        user={deleting}
+        onClose={() => setDeleting(null)}
+        onDeleted={() => {
+          setDeleting(null)
+          setSelectedUserId(null)
+          refetch()
+          refetchStats()
+        }}
       />
 
       <BulkBar

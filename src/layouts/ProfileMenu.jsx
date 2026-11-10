@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, ChevronDown, LogOut, Monitor, Moon, Sun, UserCircle2 } from 'lucide-react'
+import { Building2, Check, ChevronDown, LogOut, Monitor, Moon, Sun, UserCircle2 } from 'lucide-react'
 import { useAuth } from '../features/auth/context/AuthContext'
 import { useToast } from '../shared/components/ToastContext'
 import { useTheme } from '../shared/context/ThemeContext'
@@ -17,7 +17,7 @@ const ProfileMenu = () => {
   const menuRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
-  const { admin, logout } = useAuth()
+  const { admin, logout, myCampuses } = useAuth()
   const { showToast } = useToast()
   const { preference, setTheme } = useTheme()
   const [openPath, setOpenPath] = useState(null)
@@ -76,6 +76,15 @@ const ProfileMenu = () => {
               </Badge>
             </div>
           </div>
+          {myCampuses.length > 0 && (
+            // Campus-limited support: say which campuses their data covers.
+            <p className="flex items-start gap-2 px-2.5 pb-2 text-xs leading-5 text-muted" title={myCampuses.map((c) => c.name).join(', ')}>
+              <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-subtle" />
+              <span className="min-w-0">
+                Limited to <span className="text-fg-2">{myCampuses.map((c) => c.shortName || c.name).join(', ')}</span>
+              </span>
+            </p>
+          )}
 
           <div className="my-1 h-px bg-line" />
 

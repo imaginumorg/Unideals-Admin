@@ -150,6 +150,8 @@ export const AuthProvider = ({ children }) => {
       can,
       accessReady: !admin || isAdmin || Boolean(accessData),
       reloadAccess: loadAccess,
+      // Campuses a limited support person covers ([] = every campus).
+      myCampuses: isAdmin ? [] : accessData?.mineCampuses || [],
       sessionLoading,
       login,
       logout,

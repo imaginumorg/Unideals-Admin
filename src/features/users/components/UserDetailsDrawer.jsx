@@ -1,6 +1,6 @@
 import { memo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Ban, Building2, CalendarDays, Clock, Flag, KeyRound, Mail, Package, Phone, ShieldCheck, Trophy, UserCheck } from 'lucide-react'
+import { Ban, Building2, CalendarDays, Clock, Flag, KeyRound, Mail, Package, Phone, ShieldCheck, Trash2, Trophy, UserCheck } from 'lucide-react'
 import { useAuth } from '../../auth/context/AuthContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { usersApi } from '../api/usersApi'
@@ -125,6 +125,22 @@ const Body = ({ userId, version, onRequestAction }) => {
               {user.status === 'suspended' ? 'Reactivate account' : 'Suspend account'}
             </button>
             )}
+          </div>
+        </Section>
+      )}
+
+      {isAdmin && (
+        <Section title="Danger zone">
+          <div className="flex flex-col gap-3 rounded-xl border border-danger/30 bg-danger/5 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-fg">Delete account</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted">
+                Permanently removes {user.name.split(' ')[0] || 'this user'}, their listings, chats, deals and everything else linked to them.
+              </p>
+            </div>
+            <button type="button" onClick={() => onRequestAction(user, 'delete')} className="btn btn-danger shrink-0">
+              <Trash2 className="h-4 w-4" /> Delete account
+            </button>
           </div>
         </Section>
       )}

@@ -1,7 +1,8 @@
 import { memo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Eye, KeyRound, Lock, PencilLine, RotateCcw, ShieldCheck, UserCog, Users } from 'lucide-react'
+import { Building2, Eye, KeyRound, Lock, PencilLine, RotateCcw, ShieldCheck, UserCog, Users } from 'lucide-react'
 import { accessApi } from '../api/accessApi'
+import CampusScopePicker from '../components/CampusScopePicker'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { useAuth } from '../../auth/context/AuthContext'
 import { useToast } from '../../../shared/components/ToastContext'
@@ -21,6 +22,10 @@ const normalize = (features, permissions) =>
 
 const countChanges = (features, a, b) =>
   features.reduce((n, f) => n + (a[f.key].view !== b[f.key].view) + (a[f.key].manage !== b[f.key].manage), 0)
+
+// Campus limit in the UI: null = every campus, [ids] = only those (sorted).
+const toScope = (list) => (Array.isArray(list) && list.length ? [...list].map(String).sort() : null)
+const sameScope = (a, b) => (a === null || b === null ? a === b : a.length === b.length && a.every((id, i) => id === b[i]))
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || 'This person'
 
@@ -85,7 +90,7 @@ const RoleAccess = () => {
   const { reloadAccess } = useAuth()
   const { showToast } = useToast()
   const [params, setParams] = useSearchParams()
-  const [draft, setDraft] = useState(null) // { subject, mode, permissions } — unsaved edits
+  const [draft, setDraft] = useState(null) // { subject, mode, permissions, campuses } — unsaved edits
   const [saving, setSaving] = useState(false)
   const [pendingSubject, setPendingSubject] = useState(undefined) // switch target while dirty
 
@@ -101,8 +106,11 @@ const RoleAccess = () => {
 
   const features = data.features || []
   const staff = data.staff || []
+  const campusCatalog = data.campuses || []
   const role = normalize(features, data.support)
+  const roleCampuses = toScope(data.supportCampuses)
   const defaults = normalize(features, data.defaults)
+  const scopedLabels = features.filter((f) => (data.campusScoped || []).includes(f.key)).map((f) => f.label)
 
   // Subject: the role (null) or one support person (?person=<id>).
   const personId = params.get('person')
@@ -111,15 +119,22 @@ const RoleAccess = () => {
 
   const savedMode = person ? (person.custom ? 'custom' : 'role') : 'role'
   const savedPermissions = person ? normalize(features, person.permissions) : role
+  const savedCampuses = person ? toScope(person.campuses) : roleCampuses
   const live = draft && draft.subject === subject ? draft : null
   const mode = live ? live.mode : savedMode
   const current = live ? live.permissions : savedPermissions
+  const currentCampuses = live ? live.campuses : savedCampuses
   // A person following the role shows the role's switches, read-only.
   const shown = person && mode === 'role' ? role : current
+  const shownCampuses = person && mode === 'role' ? roleCampuses : currentCampuses
   const editable = !person || mode === 'custom'
 
-  const changes = (person && mode !== savedMode ? 1 : 0) + (editable ? countChanges(features, savedPermissions, current) : 0)
-  const isRoleDefault = !person && countChanges(features, defaults, current) === 0
+  const campusChanged = editable && !sameScope(savedCampuses, currentCampuses)
+  const changes =
+    (person && mode !== savedMode ? 1 : 0) + (editable ? countChanges(features, savedPermissions, current) : 0) + (campusChanged ? 1 : 0)
+  const isRoleDefault = !person && countChanges(features, defaults, current) === 0 && currentCampuses === null
+  // "Only some campuses" with none picked can't be saved.
+  const campusesIncomplete = editable && Array.isArray(currentCampuses) && currentCampuses.length === 0
 
   const select = (id) => {
     if (changes > 0) {
@@ -135,7 +150,8 @@ const RoleAccess = () => {
     setPendingSubject(undefined)
   }
 
-  const update = (next) => setDraft({ subject, mode, permissions: normalize(features, next) })
+  const update = (next, campuses = currentCampuses) => setDraft({ subject, mode, permissions: normalize(features, next), campuses })
+  const setCampuses = (campuses) => setDraft({ subject, mode, permissions: current, campuses })
   const set = (key, level, value) => {
     const next = { ...current, [key]: { ...current[key], [level]: value } }
     if (level === 'view' && !value) next[key].manage = false
@@ -143,15 +159,18 @@ const RoleAccess = () => {
     update(next)
   }
   const setAll = (view, manage) => update(Object.fromEntries(features.map((f) => [f.key, { view, manage }])))
-  const setMode = (nextMode) =>
+  const setMode = (nextMode) => {
     // Starting custom access begins from what the person has today.
-    setDraft({ subject, mode: nextMode, permissions: nextMode === 'custom' && savedMode === 'role' ? role : current })
+    const fromRole = nextMode === 'custom' && savedMode === 'role'
+    setDraft({ subject, mode: nextMode, permissions: fromRole ? role : current, campuses: fromRole ? roleCampuses : currentCampuses })
+  }
 
   const save = async () => {
+    if (campusesIncomplete) return
     setSaving(true)
     let response
-    if (!person) response = await accessApi.updateSupport(current)
-    else if (mode === 'custom') response = await accessApi.updatePerson(person.id, current)
+    if (!person) response = await accessApi.updateSupport(current, currentCampuses || [])
+    else if (mode === 'custom') response = await accessApi.updatePerson(person.id, current, currentCampuses || [])
     else response = await accessApi.resetPerson(person.id)
     setSaving(false)
     if (!response.success) {
@@ -167,6 +186,8 @@ const RoleAccess = () => {
   const visible = features.filter((f) => shown[f.key].view)
   const canChange = features.filter((f) => shown[f.key].manage)
   const who = person ? firstName(person.name) : 'Support staff'
+  const campusName = new Map(campusCatalog.map((c) => [c.id, c.name]))
+  const shownCampusNames = (shownCampuses || []).map((id) => campusName.get(id) || 'Removed campus')
 
   return (
     <div>
@@ -176,7 +197,7 @@ const RoleAccess = () => {
         icon={KeyRound}
         actions={
           !person && (
-            <button type="button" onClick={() => update(defaults)} disabled={isRoleDefault} className="btn btn-secondary">
+            <button type="button" onClick={() => update(defaults, null)} disabled={isRoleDefault} className="btn btn-secondary">
               <RotateCcw className="h-4 w-4" /> Reset to default
             </button>
           )
@@ -190,6 +211,22 @@ const RoleAccess = () => {
           <Card>
             <CardHeader title={`What ${person ? firstName(person.name) : 'support'} will see`} icon={Eye} />
             <div className="space-y-4 p-5">
+              <div>
+                <p className="eyebrow mb-2">Campuses · {shownCampuses ? shownCampuses.length : 'All'}</p>
+                {shownCampuses ? (
+                  shownCampusNames.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {shownCampusNames.map((name, i) => (
+                        <Badge key={`${name}-${i}`} tone="info"><Building2 className="h-3 w-3" /> {name}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-warning">No campus picked yet.</p>
+                  )
+                ) : (
+                  <p className="text-[13px] text-fg-2">Every campus.</p>
+                )}
+              </div>
               <div>
                 <p className="eyebrow mb-2">Sections · {visible.length}</p>
                 {visible.length ? (
@@ -275,6 +312,18 @@ const RoleAccess = () => {
             </div>
           )}
 
+          <CampusScopePicker
+            key={subject || 'role'}
+            campuses={campusCatalog}
+            value={shownCampuses}
+            onChange={setCampuses}
+            editable={editable}
+            who={person ? who : 'support staff'}
+            changed={campusChanged}
+            differsFromRole={Boolean(person) && mode === 'custom' && !sameScope(currentCampuses, roleCampuses)}
+            scopedLabels={scopedLabels}
+          />
+
           <div className="hidden grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] gap-6 border-b border-line bg-surface-2/40 px-5 py-2.5 text-xs font-medium text-muted md:grid">
             <span>Section</span>
             <span className="flex items-center gap-1.5"><Eye className="h-3.5 w-3.5" /> Can see</span>
@@ -348,7 +397,13 @@ const RoleAccess = () => {
             <button type="button" onClick={() => setDraft(null)} disabled={saving} className="btn btn-ghost btn-sm">
               Discard
             </button>
-            <button type="button" onClick={save} disabled={saving} className="btn btn-primary btn-sm">
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || campusesIncomplete}
+              title={campusesIncomplete ? 'Pick at least one campus first' : undefined}
+              className="btn btn-primary btn-sm"
+            >
               {saving && <Spinner />} Save
             </button>
           </div>
