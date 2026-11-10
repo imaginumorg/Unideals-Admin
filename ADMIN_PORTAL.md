@@ -26,6 +26,8 @@ The table shows the **default** Support access. A Super Admin can change it unde
 - For each section, **Can see** shows or hides it for Support (sidebar, search and direct links). **Can change** allows that section's actions; it needs **Can see**.
 - **What support will see** previews the result before saving. **Reset to default** restores the table above.
 - The server checks the policy on every request, so a hidden section can't be opened by typing its address. Support staff pick up changes the next time they load a page or return to the tab.
+- **Different access per person:** pick a person under **Who**, then choose **Custom access** and set their switches. They keep that set even when the role defaults change. **Follow role defaults** puts them back on the role. Custom people show a *Custom* badge. A support user's details panel on the Users page has a **Manage access** link.
+- If someone's support role is removed, their custom access is deleted too.
 - Changing user roles and editing access always stay Super Admin only.
 - Every save is recorded in the audit log as *Changed support access*, with what changed.
 - The campus list stays readable for everyone because filters on other pages use it. Hiding *Campuses* hides its page.

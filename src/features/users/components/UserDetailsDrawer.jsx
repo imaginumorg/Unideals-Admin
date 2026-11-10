@@ -1,5 +1,6 @@
 import { memo, useCallback } from 'react'
-import { Ban, Building2, CalendarDays, Clock, Flag, Mail, Package, Phone, ShieldCheck, Trophy, UserCheck } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Ban, Building2, CalendarDays, Clock, Flag, KeyRound, Mail, Package, Phone, ShieldCheck, Trophy, UserCheck } from 'lucide-react'
 import { useAuth } from '../../auth/context/AuthContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { usersApi } from '../api/usersApi'
@@ -104,6 +105,11 @@ const Body = ({ userId, version, onRequestAction }) => {
       {(canManage || isAdmin) && (
         <Section title="Account actions">
           <div className="grid gap-2 sm:grid-cols-2">
+            {isAdmin && user.role === 'support' && (
+              <Link to={`/system/access?person=${user.id}`} className="btn btn-secondary">
+                <KeyRound className="h-4 w-4" /> Manage access
+              </Link>
+            )}
             {isAdmin && (
               <button type="button" onClick={() => onRequestAction(user, 'role')} className="btn btn-secondary">
                 <ShieldCheck className="h-4 w-4" /> {user.role === 'support' ? 'Remove support access' : 'Make support staff'}

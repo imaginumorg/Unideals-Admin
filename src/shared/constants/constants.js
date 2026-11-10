@@ -50,6 +50,8 @@ export const REPORT_REASON_LABELS = {
 
 export const AUDIT_ACTION_LABELS = {
   'access.update': 'Changed support access',
+  'access.person_update': "Changed a person's access",
+  'access.person_reset': 'Reset a person to role access',
   'user.suspend': 'Suspended user',
   'user.activate': 'Activated user',
   'user.status_change': 'Changed user status',
@@ -76,6 +78,8 @@ export const AUDIT_ACTION_LABELS = {
 // Tone used for the activity feed icon of each action.
 export const AUDIT_ACTION_TONES = {
   'access.update': 'violet',
+  'access.person_update': 'violet',
+  'access.person_reset': 'violet',
   'user.suspend': 'danger',
   'product.block': 'danger',
   'product.hard_delete': 'danger',

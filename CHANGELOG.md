@@ -58,6 +58,30 @@ Measured against `--c-surface` (`#111113`):
   - validation;
   - role changes stay Super Admin only.
 
+### Per-person access
+- **What it does:** a Super Admin can give one support person **custom access** that replaces the role defaults for them. Two support staff can now have different access.
+- **Storage:** `StaffAccess` model. When a person has custom access, it holds their **full** set of switches, so later edits to the role don't change it.
+- **Effective access** = the person's custom set if it exists, otherwise the role defaults. Cached per person and cleared on save.
+- **New endpoints** (Super Admin only, audited):
+  - `PUT /api/admin/access/staff/:userId`: `access.person_update`, with the changes listed;
+  - `DELETE /api/admin/access/staff/:userId`: `access.person_reset`.
+  - Both accept only support staff.
+- `GET /api/admin/access` now also returns `staff`: each support person with their effective access and whether it's custom. It also returns `mineIsCustom`.
+- **Clean-up:** removing someone's support role deletes their custom access.
+- **Roles & Access page:**
+  - a "Who" list: role defaults, then each support person with a Custom or Role badge;
+  - a *Follow role defaults / Custom access* switch;
+  - "Differs from role" markers;
+  - a per-person preview of what they'll see;
+  - a confirmation before discarding unsaved edits when switching person.
+- **Users page:** a support user's details panel has a **Manage access** link.
+- **Tests:** access tests grow from 8 to 12:
+  - two people with different access, over HTTP;
+  - role edits don't touch custom access;
+  - reset;
+  - support-only validation;
+  - clean-up on role removal.
+
 ### Fixes
 - **Admin read limit raised** from 60 to 240 requests per minute per IP (`app.js`). Chart pages load several datasets each, and hitting the limit failed the session check and signed staff out. Sign-in attempts keep their own limit.
 
