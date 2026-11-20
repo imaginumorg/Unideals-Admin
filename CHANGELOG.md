@@ -6,6 +6,29 @@ How to use the portal is covered in [ADMIN_PORTAL.md](ADMIN_PORTAL.md).
 
 ---
 
+## 8. Catch-up with backend 2026-11-16 / 2026-11-19 (ID photos, email alerts, college verification)
+
+### Gender requests
+- **View ID**: opens the request's college ID photo in a dialog, with Approve and Reject buttons. It's loaded through `GET /api/admin/gender-requests/:id/id-card` as a blob (credentials + CORS), because the endpoint sends `Cross-Origin-Resource-Policy: same-site` and a cross-site `<img>` would be blocked. The object URL is revoked when the dialog closes.
+- Requests without a photo (`hasIdCard: false`, expired after 30 days) show *Photo expired*. Approving one warns you to reject instead.
+- Reject now takes an optional reason (`note`, max 300 characters) that the student sees.
+- Under the change, a hint shows how the current gender was set (*Self-declared*, *From Google account*, *Set by staff*).
+- `apiClient.requestBlob()` was added. It shares the 401 refresh-and-retry path with `requestBackend` (`sendWithRefresh`).
+
+### Audit log
+- Added the label and tone for `user.gender_id_view`, plus a tone for `user.gender_change_review`.
+
+### Users
+- The drawer shows a *College verified* badge and date, the unread-email digest state (on / unsubscribed, last sent), and how the gender was set.
+- Backend: `GET /api/admin/users/:id` now returns `genderSource`, `isCollegeVerified`, `collegeVerifiedAt`, `emailDigestEnabled` and `emailDigestSentAt`. It never returns the college email address.
+
+### Background jobs
+- The new `email-unread-digest` and `email-staff-attention` jobs appear automatically.
+- Backend: when one of them sends nothing, its result now includes a `skipped` reason: alerts off, `FRONTEND_URL` / `ADMIN_FRONTEND_URL` not set, daily cap reached, or the queue below the threshold. The reason is a string, so frequent no-op runs still don't write history. The Jobs page shows it as *Skipped: …*.
+- `tests/notifications.integration.test.mjs` was updated for the new field.
+
+---
+
 ## 7. Reports redesign, dark-mode contrast, support access control
 
 ### Reports page

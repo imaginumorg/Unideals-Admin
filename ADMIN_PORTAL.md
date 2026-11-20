@@ -163,8 +163,15 @@ Orders are deals between two students. Stages:
   - **Outcome** of reports filed in the range: still open, action taken, dismissed.
 
 ### Gender requests
-- Gender is set once by the student. Changing it needs approval because it controls Girls Corner access.
+- Gender is set once, either by the student or from their Google account, and is then locked. Changing it needs approval because it controls Girls Corner access.
+- Each request comes with a college ID photo. **View ID** opens it. The photo is private, never cached, and every view is recorded in the audit log (*Viewed gender-request ID photo*).
+- Photos are deleted as soon as a request is approved or rejected, and automatically after 30 days. A request whose photo has expired shows *Photo expired*: reject it so the student can send a new one.
+- When rejecting, you can add a reason (up to 300 characters). The student sees it in their notification, and it's saved in the audit log.
 - Approving a change away from *female* automatically unlists that student's Girls Corner listings.
+
+### User details
+- The user drawer shows a **College verified** badge when the student has confirmed a college email. Staff never see the college address itself.
+- It also shows whether they still get the unread-email digest, or have unsubscribed through the link in that email.
 
 ### Push notifications
 - **Compose**: title, message, type and audience (everyone, buyers, sellers, or one campus). Image and button are optional.
@@ -213,6 +220,10 @@ The server runs these on a schedule:
 | Expire abandoned payments | Daily 03:15 | Expires payment orders unpaid after 24 hours |
 | Expire boosts | Every 10 min | Ends expired boosts |
 | Send scheduled notifications | Every minute | Sends push notifications whose time has come |
+| Email unread-notification digests | Daily 13:30 UTC (7 PM IST) | Emails students whose personal notifications sat unread for a day (5+ items, at most once every 3 days, capped daily) |
+| Email admins about the attention queue | Hourly | Emails Super Admins when pending reports, gender requests, auto-hidden listings and failing jobs add up to 10+ (at most once a day each) |
+
+- The two email jobs do nothing until the server has `EMAIL_ALERTS_ENABLED=true`, and they share Resend's free quota (100 emails a day) with sign-up and password-reset emails. When a run sends nothing, its result says why, e.g. *Skipped: Email alerts are off* or *Skipped: Queue below threshold (4 of 10)*. **Run now** on these sends real emails.
 
 - Each job shows **Healthy**, **Failing** (last run errored — the error is shown), **Overdue** (no run in more than twice its interval, e.g. the server was down), **Running** or **Not run yet**.
 - See the last run, last success, how long it took and what it did (e.g. "Boosts expired 3").

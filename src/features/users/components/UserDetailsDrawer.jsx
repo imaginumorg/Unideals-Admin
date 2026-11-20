@@ -1,12 +1,32 @@
 import { memo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Ban, Building2, CalendarDays, Clock, Flag, KeyRound, Mail, Package, Phone, ShieldCheck, Trash2, Trophy, UserCheck } from 'lucide-react'
+import {
+  BadgeCheck,
+  Ban,
+  BellOff,
+  BellRing,
+  Building2,
+  CalendarDays,
+  Clock,
+  Flag,
+  KeyRound,
+  Mail,
+  Package,
+  Phone,
+  ShieldCheck,
+  Trash2,
+  Trophy,
+  UserCheck,
+  UserCog,
+} from 'lucide-react'
 import { useAuth } from '../../auth/context/AuthContext'
 import { useFetch } from '../../../shared/hooks/useFetch'
 import { usersApi } from '../api/usersApi'
 import Avatar from '../../../shared/components/Avatar'
 import { Badge, Drawer, ErrorState, Section, Skeleton, StatusBadge } from '../../../shared/components/ui'
 import { formatCurrency, formatDate, formatDateTime, titleCase } from '../../../shared/lib/format'
+
+const GENDER_SOURCE_LABEL = { self: 'self-declared', google: 'from Google account', admin: 'set by staff' }
 
 const Body = ({ userId, version, onRequestAction }) => {
   const { can, isAdmin } = useAuth()
@@ -38,7 +58,19 @@ const Body = ({ userId, version, onRequestAction }) => {
     { icon: Building2, value: user.campus?.name || 'No campus' },
     { icon: CalendarDays, value: `Joined ${formatDate(user.joinedAt)}` },
     { icon: Clock, value: user.lastLoginAt ? `Last seen ${formatDateTime(user.lastLoginAt)}` : 'Never signed in' },
-  ]
+    user.isCollegeVerified && {
+      icon: BadgeCheck,
+      value: `College email verified${user.collegeVerifiedAt ? ` ${formatDate(user.collegeVerifiedAt)}` : ''}`,
+    },
+    // Older APIs don't send this field; only show it when known.
+    user.emailDigestEnabled !== undefined && {
+      icon: user.emailDigestEnabled ? BellRing : BellOff,
+      value: user.emailDigestEnabled
+        ? `Unread-email digest on${user.emailDigestSentAt ? ` · last sent ${formatDate(user.emailDigestSentAt)}` : ''}`
+        : 'Unsubscribed from unread-email digests',
+    },
+    user.genderSource && user.gender && { icon: UserCog, value: `Gender: ${GENDER_SOURCE_LABEL[user.genderSource] || titleCase(user.genderSource)}` },
+  ].filter(Boolean)
 
   return (
     <div className="space-y-6">
@@ -51,6 +83,11 @@ const Body = ({ userId, version, onRequestAction }) => {
             {user.role === 'support' && <Badge tone="info"><ShieldCheck className="h-3 w-3" /> Support</Badge>}
             {user.subscription && <Badge tone="brand">{titleCase(user.subscription)}</Badge>}
             {user.gender && <Badge>{titleCase(user.gender)}</Badge>}
+            {user.isCollegeVerified && (
+              <Badge tone="success">
+                <BadgeCheck className="h-3 w-3" /> College verified
+              </Badge>
+            )}
           </div>
           <p className="mt-2 font-mono text-[11px] text-subtle">{user.id}</p>
         </div>

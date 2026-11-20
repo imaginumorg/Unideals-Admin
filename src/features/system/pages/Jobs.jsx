@@ -45,9 +45,12 @@ const formatDuration = (ms) => {
 }
 
 // { checked: 40, expired: 2 } -> "Checked 40 · Expired 2"
+// A `skipped` reason (e.g. email alerts turned off) is shown as-is, last.
 const summarize = (result) => {
   if (!result || typeof result !== 'object') return '—'
-  const parts = Object.entries(result).map(([key, value]) => `${titleCase(key.replace(/([A-Z])/g, ' $1'))} ${value}`)
+  const { skipped, ...counts } = result
+  const parts = Object.entries(counts).map(([key, value]) => `${titleCase(key.replace(/([A-Z])/g, ' $1'))} ${value}`)
+  if (skipped) parts.push(`Skipped: ${skipped}`)
   return parts.length ? parts.join(' · ') : '—'
 }
 

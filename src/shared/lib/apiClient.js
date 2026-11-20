@@ -43,23 +43,43 @@ const send = (path, { method, body, query }) =>
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
 
-export const requestBackend = async (path, { method = 'GET', body, query } = {}) => {
-  let response
+// Sends once, and on a 401 refreshes the session and retries once.
+const sendWithRefresh = async (path, options) => {
   try {
-    response = await send(path, { method, body, query })
+    let response = await send(path, options)
     if (response.status === 401 && !NO_REFRESH_PATHS.includes(path)) {
       const refreshed = await refreshSession()
       if (refreshed) {
-        response = await send(path, { method, body, query })
+        response = await send(path, options)
       } else {
         window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
       }
     }
+    return response
   } catch {
     const error = new Error('Unable to reach the server. Check your connection or API URL.')
     error.status = 0
     throw error
   }
+}
+
+/**
+ * Binary GET (e.g. a private image). Returns a Blob; errors carry the
+ * server's JSON message when it sends one.
+ */
+export const requestBlob = async (path, { query } = {}) => {
+  const response = await sendWithRefresh(path, { method: 'GET', query })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    const error = new Error(payload.message || `Request failed (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return response.blob()
+}
+
+export const requestBackend = async (path, { method = 'GET', body, query } = {}) => {
+  const response = await sendWithRefresh(path, { method, body, query })
 
   const payload = await response.json().catch(() => ({ success: false, message: 'Invalid server response' }))
 
