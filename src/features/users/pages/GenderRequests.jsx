@@ -99,6 +99,7 @@ const GenderRequests = () => {
 
   const confirm = async () => {
     if (!pending) return
+    if (pending.action === 'approve' && !pending.request.hasIdCard) return
     setSubmitting(true)
     const response = await genderRequestsApi.review(
       pending.request.id,
@@ -204,7 +205,9 @@ const GenderRequests = () => {
                         </button>
                         <button
                           type="button"
-                          disabled={!canWrite}
+                          // No ID photo, no approval: reject so they can resend it.
+                          disabled={!canWrite || !request.hasIdCard}
+                          title={request.hasIdCard ? undefined : 'The ID photo expired. Reject so the student can send a new one.'}
                           onClick={() => startReview(request, 'approve')}
                           className="btn btn-success btn-sm"
                         >

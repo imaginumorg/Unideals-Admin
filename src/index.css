@@ -6,7 +6,7 @@
  * Unideals Admin design system.
  *
  * Every color comes from a token, so components never need `dark:` pairs.
- * Dark is the default theme; light is opt-in via <html data-theme="light">.
+ * Light is the default (set on <html data-theme="light">); these :root values are the dark palette.
  *
  * Direction: quiet neutral surfaces separated by hairline borders, one
  * restrained indigo accent (the Unideals brand), status colors used only for

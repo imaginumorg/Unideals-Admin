@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="dark" class="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="theme-color" content="#f7f7f8" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Unideals Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,10 +17,11 @@
       // Apply the saved theme before first paint to avoid a light/dark flash.
       try {
         var t = localStorage.getItem('campus_mart_admin_theme')
-        var light = t === 'light' || (t === 'system' && matchMedia('(prefers-color-scheme: light)').matches)
-        if (light) {
-          document.documentElement.setAttribute('data-theme', 'light')
-          document.documentElement.classList.remove('dark')
+        // Light unless dark was chosen (or "system" and the OS is dark).
+        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) {
+          document.documentElement.setAttribute('data-theme', 'dark')
+          document.documentElement.classList.add('dark')
         }
       } catch (e) {}
     </script>

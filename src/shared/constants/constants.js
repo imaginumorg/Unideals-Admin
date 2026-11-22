@@ -33,6 +33,7 @@ export const REPORT_REASONS = {
   DUPLICATE_LISTING: 'duplicate_listing',
   WRONG_CATEGORY: 'wrong_category',
   SOLD_OR_UNAVAILABLE: 'sold_or_unavailable',
+  FAKE_GENDER_GIRLS_CORNER: 'fake_gender_girls_corner',
   OTHER: 'other',
 }
 
@@ -45,6 +46,7 @@ export const REPORT_REASON_LABELS = {
   duplicate_listing: 'Duplicate',
   wrong_category: 'Wrong Category',
   sold_or_unavailable: 'Sold / Unavailable',
+  fake_gender_girls_corner: 'Fake gender (Girls Corner)',
   other: 'Other',
 }
 

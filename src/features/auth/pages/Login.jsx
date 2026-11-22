@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ScrollText, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -20,12 +20,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [showRecovery, setShowRecovery] = useState(false)
 
   const { login } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    document.title = 'Sign in · Unideals Admin'
+  }, [])
 
   const returnTo = (() => {
     const from = location.state?.from
@@ -152,16 +155,7 @@ const Login = () => {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-fg-2">Password</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowRecovery((value) => !value)}
-                    className="text-xs font-medium text-muted transition-colors hover:text-fg"
-                  >
-                    Forgot password?
-                  </button>
-                </span>
+                <span className="label">Password</span>
                 <div className="relative">
                   <LockKeyhole className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-subtle" />
                   <input
@@ -182,13 +176,6 @@ const Login = () => {
                   </button>
                 </div>
               </label>
-
-              {showRecovery && (
-                <div className="animate-fade-in rounded-xl border border-line bg-surface p-3.5 text-[13px] text-muted">
-                  Staff passwords are reset through the main Unideals app: use <b className="text-fg-2">Forgot password</b> on the
-                  storefront sign-in with this email, then return here. If your account is locked, ask a Super Admin.
-                </div>
-              )}
             </div>
 
             <button type="submit" disabled={submitting} className="btn btn-primary mt-6 h-10 w-full text-sm">

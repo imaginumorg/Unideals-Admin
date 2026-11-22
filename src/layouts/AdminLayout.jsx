@@ -1,6 +1,8 @@
-import { Suspense, memo, useState } from 'react'
+import { Suspense, memo, useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import Loader from '../shared/components/Loader'
+import ErrorBoundary from '../shared/components/ErrorBoundary'
+import { ACCOUNT_ITEMS, findNavItem } from './navigation'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import { AttentionProvider } from './AttentionContext'
@@ -22,6 +24,12 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const { isAuthenticated, sessionLoading, accessReady } = useAuth()
   const location = useLocation()
+
+  // Name each browser tab after its page so staff can tell open tabs apart.
+  useEffect(() => {
+    const page = findNavItem(location.pathname) || ACCOUNT_ITEMS.find((item) => item.path === location.pathname)
+    document.title = page ? `${page.label} · Unideals Admin` : 'Unideals Admin'
+  }, [location.pathname])
 
   // Wait for section access too, so nothing flashes and then disappears.
   if (sessionLoading || (isAuthenticated && !accessReady)) return <Loader fullScreen />
@@ -51,12 +59,14 @@ const AdminLayout = () => {
         <div className="min-w-0 flex-1">
           <Navbar onMenuClick={() => setSidebarOpen(true)} />
           <main className="mx-auto w-full max-w-[1400px] px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
-            <Suspense fallback={<Loader />}>
-              {/* Keyed on path (not query) so filters don't replay the entrance. */}
-              <div key={location.pathname} className="animate-page">
-                <Outlet />
-              </div>
-            </Suspense>
+            <ErrorBoundary resetKey={location.pathname}>
+              <Suspense fallback={<Loader />}>
+                {/* Keyed on path (not query) so filters don't replay the entrance. */}
+                <div key={location.pathname} className="animate-page">
+                  <Outlet />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

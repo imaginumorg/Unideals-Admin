@@ -9,8 +9,13 @@ const AuthContext = createContext(null)
 // Cached only for display while the session is verified; never trusted for access.
 const ADMIN_SESSION_STORAGE_KEY = 'campus_mart_admin'
 
+// Only staff can use the portal. The server already refuses everyone else;
+// this is a second check so a non-staff session can never render the app.
+const STAFF_ROLES = ['admin', 'support']
+const isStaff = (admin) => Boolean(admin) && STAFF_ROLES.includes(admin.role)
+
 const formatAdminSession = (admin) => {
-  if (!admin) return null
+  if (!isStaff(admin)) return null
   return { ...admin, roleLabel: roleLabel(admin.role), initials: initialsOf(admin.name, 'A') }
 }
 
@@ -47,7 +52,7 @@ export const AuthProvider = ({ children }) => {
 
     authApi.getAdminSession().then((response) => {
       if (!active) return
-      if (response.success && response.data) {
+      if (response.success && isStaff(response.data)) {
         const session = formatAdminSession(response.data)
         persist(session)
         setAdmin(session)
@@ -80,6 +85,11 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (email, password) => {
     const response = await authApi.loginAdmin({ email, password })
     if (!response.success) return response
+    if (!isStaff(response.data)) {
+      // Drop whatever session the server set; same wording as a bad password.
+      await authApi.logoutAdmin()
+      return { success: false, message: 'Invalid credentials' }
+    }
     const session = formatAdminSession(response.data)
     persist(session)
     setAdmin(session)

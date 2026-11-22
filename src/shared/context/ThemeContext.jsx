@@ -1,16 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-// Dark is the primary theme. "system" follows the OS preference.
+// Light is the default theme. "system" follows the OS preference.
 const THEME_OPTIONS = ['dark', 'light', 'system']
 
 const STORAGE_KEY = 'campus_mart_admin_theme'
-const DEFAULT_THEME = 'dark'
+const DEFAULT_THEME = 'light'
 
 const readStoredTheme = () => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     // Older builds stored editor-style theme ids ("dark-plus", "dracula"...).
-    if (saved === 'light' || saved === 'system') return saved
+    if (THEME_OPTIONS.includes(saved)) return saved
   } catch {
     // storage unavailable
   }
